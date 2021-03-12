@@ -279,7 +279,9 @@ def main():
     if len(sys.argv) > 1:
         config_filepath = sys.argv[1]
     else:
-        config_filepath = os.path.join(os.path.expanduser("~"), ".config", "dashboard.yml")
+        config_filepath = "~/.config/dashboard.yml"
+
+    config_filepath = os.path.expanduser(config_filepath)
 
     with open(config_filepath, "r") as config_file:
         config = yaml.safe_load(config_file)
