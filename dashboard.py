@@ -14,119 +14,11 @@ import dbus.service
 import yaml
 
 from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5.QtWidgets import QTabWidget
 
 from lib.common import AbstractView
 
 modules = {}
-
-
-class TabWidget(QtWidgets.QTabWidget):
-    def __init__(self):
-        super().__init__()
-
-        self.tab_titles = {}
-
-    def add_tab(self, widget, title, tab_id=None):
-        tab_index = self.addTab(widget, title)
-
-        self.tab_titles[tab_index] = title
-
-        if tab_id is not None:
-            Dashboard.instance.tabs[tab_id] = (self, tab_index)
-
-        return tab_index
-
-    def append_tab_title(self, index, title: str = None):
-        if title is None:
-            title = self.tab_titles[index]
-        else:
-            title = "".join([self.tab_titles[index], title])
-
-        self.setTabText(index, title)
-
-
-class WidgetContainer:
-    def __init__(self, config: dict, create_widget: callable):
-        self.config = config
-        self.create_widget = create_widget
-
-    def container(self):
-        widget = QtWidgets.QWidget()
-
-        if self.config["orientation"] == "vertical":
-            layout = QtWidgets.QVBoxLayout()
-        else:
-            layout = QtWidgets.QHBoxLayout()
-
-        layout.setContentsMargins(0, 0, 0, 0)
-        widget.setLayout(layout)
-
-        stretch_widgets = self.config.get("stretch", [])
-        fixed_widget_sizes = self.config.get("sizes", [])
-
-        for index, child_widget in enumerate(self.config["widgets"]):
-            child_widget_instance: QtWidgets.QWidget = self.create_widget(child_widget)
-
-            if len(stretch_widgets) - 1 > index:
-                stretch = stretch_widgets[index]
-            else:
-                stretch = 0
-
-            if len(fixed_widget_sizes) - 1 > index and fixed_widget_sizes[index]:
-                child_widget_instance.setFixedWidth(fixed_widget_sizes[index])
-
-            layout.addWidget(child_widget_instance, stretch=stretch)
-
-        return widget
-
-    def groupbox(self):
-        widget = QtWidgets.QGroupBox()
-        widget.setTitle(self.config["title"])
-
-        layout = QtWidgets.QStackedLayout()
-        widget.setLayout(layout)
-        layout.addWidget(self.create_widget(self.config["widgets"][0]))
-
-        return widget
-
-    def splitter(self):
-        widget = QtWidgets.QSplitter()
-
-        if self.config["orientation"] == "vertical":
-            widget.setOrientation(QtCore.Qt.Vertical)
-        else:
-            widget.setOrientation(QtCore.Qt.Horizontal)
-
-        for child_widget in self.config["widgets"]:
-            widget.addWidget(self.create_widget(child_widget))
-
-        if "sizes" in self.config:
-            widget.setSizes(self.config["sizes"])
-
-        return widget
-
-    def tabs(self):
-        widget = TabWidget()
-
-        for child_widget in self.config["widgets"]:
-            if "tab_title" in child_widget:
-                tab_title = child_widget["tab_title"]
-                del child_widget["tab_title"]
-            else:
-                tab_title = child_widget["type"]
-
-            if "tab_id" in child_widget:
-                tab_id = child_widget["tab_id"]
-                del child_widget["tab_id"]
-            else:
-                tab_id = None
-
-            widget.add_tab(self.create_widget(child_widget), tab_title, tab_id)
-
-        if "active_tab" in self.config:
-            widget.setCurrentIndex(self.config["active_tab"])
-
-        return widget
 
 
 class Dashboard(QtWidgets.QMainWindow):
@@ -138,7 +30,7 @@ class Dashboard(QtWidgets.QMainWindow):
         Dashboard.instance = self
 
         self.session_dbus = session_dbus
-        self.tabs: Dict[str, Tuple[TabWidget, int]] = {}
+        self.tabs: Dict[str, Tuple[QTabWidget, int]] = {}
         self.widget_instances: Dict[str, List[AbstractView]] = {}
         self.error_message = QtWidgets.QErrorMessage(self)
 
@@ -203,25 +95,16 @@ class Dashboard(QtWidgets.QMainWindow):
 
         self.update_splash_screen("Creating widget '{}'".format(widget_type))
 
-        widget = None
+        module = modules[widget_type]
 
-        widget_container_helper = WidgetContainer(config, self.create_widget)
-        if hasattr(widget_container_helper, widget_type):
-            method = getattr(widget_container_helper, widget_type)
-            if callable(method):
-                widget = method()
+        options = dict(config)
+        del options["type"]
 
-        if widget is None:
-            module = modules[widget_type]
+        parameters = inspect.signature(module.View.__init__).parameters
+        if "dashboard_instance" in parameters:
+            options["dashboard_instance"] = self
 
-            options = dict(config)
-            del options["type"]
-
-            parameters = inspect.signature(module.View.__init__).parameters
-            if "dashboard_instance" in parameters:
-                options["dashboard_instance"] = self
-
-            widget = module.View(**options)
+        widget = module.View(**options)
 
         if widget_type not in self.widget_instances:
             self.widget_instances[widget_type] = []
@@ -255,12 +138,12 @@ class Dashboard(QtWidgets.QMainWindow):
 def import_modules(config):
     widget_type = config["type"]
 
-    if hasattr(WidgetContainer, widget_type):
+    if "widgets" in config:
         for child_widget in config["widgets"]:
             import_modules(child_widget)
-    else:
-        if widget_type not in modules:
-            modules[widget_type] = importlib.import_module("modules.{}".format(widget_type))
+
+    if widget_type not in modules:
+        modules[widget_type] = importlib.import_module("modules.{}".format(widget_type))
 
 
 def exception_hook(exception_type, exception_value, exception_traceback):
