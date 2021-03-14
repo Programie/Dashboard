@@ -12,3 +12,7 @@ A customizable dashboard providing various widgets.
 ## Contained widgets
 
 See the [modules](modules) folder as well as the individual README files for each widget module.
+
+## Configuration
+
+See [sample-config.yml](sample-config.yml) for a basic commented configuration file.

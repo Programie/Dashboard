@@ -1,0 +1,55 @@
+# Various options affecting the dashboard window
+window_options:
+  # The screen on which the dashboard should be displayed
+  screen: -1
+
+  # The size of the window
+  #  size: [ 800, 500 ]
+
+  # Whether to keep the dashboard window bellow any other window
+  stay_on_bottom: true
+
+  # Whether to show the dashboard window without any frame and title bar
+  frameless: true
+
+  # Exclude the dashboard window from the task bar
+  tool: true
+
+  # Allow to resize the window
+  #  allow_resize: true
+
+  # Maximize the window
+  maximize: true
+
+# Configuration of the main (central) widget, usually a container, splitter or tab widget
+central_widget:
+  # The type of the widget (any widget module name like "container", "tabs", "calendar" or "clock")
+  type: tabs
+
+  # A list of widgets to show as tabs
+  widgets:
+    - type: container
+      tab_title: Main
+      orientation: horizontal
+      stretch: [ 1, 0, 0 ]
+      sizes: [ 0, 400, 0 ]
+      widgets:
+        - type: web_view
+          url: https://example.org
+        - type: calendar
+          url: https://your-caldav-server
+          username: your-username
+          password: your-password
+          default_calendar: My Calendar
+          default_todo_list: My Tasks
+          sort_todos:
+            - due
+            - priority
+            - dtstamp
+          todos_reversed: true
+    - type: pushover
+      tab_title: Pushover
+      tab_id: pushover
+      secret: secret retrieved from https://api.pushover.net/1/users/login.json
+      device_id: id retrieved from https://api.pushover.net/1/users/login.json
+      tab_id_status: pushover
