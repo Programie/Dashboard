@@ -8,7 +8,7 @@ from lib.common import AbstractView
 
 
 class View(QtWidgets.QFrame, AbstractView):
-    def __init__(self, url, width, height, open_url=None, stop_on_inactive=True, disable_screensaver=True):
+    def __init__(self, url, width, height, open_url=None, stop_on_inactive=True, allow_screensaver=True):
         super().__init__(None)
 
         self.url = url
@@ -23,7 +23,7 @@ class View(QtWidgets.QFrame, AbstractView):
 
         self.dbus.connect("org.freedesktop.login1", "/org/freedesktop/login1/seat/seat0", "org.freedesktop.DBus.Properties", "PropertiesChanged", self.login_seat_changed)
 
-        self.vlc_instance = vlc.Instance("--no-disable-screensaver" if disable_screensaver else "")
+        self.vlc_instance = vlc.Instance("--no-disable-screensaver" if allow_screensaver else "")
 
         self.setFixedSize(QtCore.QSize(width, height))
 
