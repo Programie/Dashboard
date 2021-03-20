@@ -24,10 +24,10 @@ class View(QtWidgets.QWidget, AbstractView):
             else:
                 stretch_widget = 0
 
-            if sizes and len(sizes) - 1 > index and sizes[index]:
+            if sizes and len(sizes) > index and sizes[index]:
                 if orientation == "vertical":
-                    child_widget_instance.setFixedWidth(sizes[index])
-                else:
                     child_widget_instance.setFixedHeight(sizes[index])
+                else:
+                    child_widget_instance.setFixedWidth(sizes[index])
 
             layout.addWidget(child_widget_instance, stretch=stretch_widget)
