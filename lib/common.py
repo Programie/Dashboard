@@ -1,5 +1,6 @@
 import datetime
 import os
+import subprocess
 import time
 import traceback
 from collections import deque
@@ -304,3 +305,10 @@ def format_timedelta(delta: datetime.timedelta, with_seconds=False):
 
 def get_cache_path(name: str):
     return os.path.join(QtCore.QStandardPaths.standardLocations(QtCore.QStandardPaths.CacheLocation)[0], name)
+
+
+def disable_screensaver(window_id, state: bool):
+    if state:
+        subprocess.call(["xdg-screensaver", "suspend", str(int(window_id))])
+    else:
+        subprocess.call(["xdg-screensaver", "resume", str(int(window_id))])
