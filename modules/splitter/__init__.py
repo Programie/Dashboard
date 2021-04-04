@@ -1,11 +1,10 @@
 from PyQt5 import QtWidgets, QtCore
 
-from dashboard import Dashboard
-from lib.common import AbstractView
+from lib.common import AbstractView, get_dashboard_instance
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, dashboard_instance: Dashboard, widgets, orientation="horizontal", sizes=None):
+    def __init__(self, widgets, orientation="horizontal", sizes=None):
         super().__init__()
 
         if orientation == "vertical":
@@ -13,6 +12,7 @@ class View(QtWidgets.QSplitter, AbstractView):
         else:
             self.setOrientation(QtCore.Qt.Horizontal)
 
+        dashboard_instance = get_dashboard_instance()
         for child_widget in widgets:
             self.addWidget(dashboard_instance.create_widget(child_widget))
 

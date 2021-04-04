@@ -16,7 +16,7 @@ from pytz import timezone
 from vobject import icalendar
 
 from dashboard import Dashboard
-from lib.common import Timer, AbstractView
+from lib.common import Timer, AbstractView, get_dashboard_instance
 
 
 def escape_ical_string(string):
@@ -635,10 +635,10 @@ class CalendarManager:
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, dashboard_instance: Dashboard, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False):
+    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False):
         super().__init__()
 
-        DBusHandler(self, dashboard_instance.session_dbus)
+        DBusHandler(self, get_dashboard_instance().session_dbus)
 
         self.calendar_manager = CalendarManager(url, username, password)
 

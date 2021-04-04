@@ -1,16 +1,14 @@
 from PyQt5 import QtWidgets
 
-from dashboard import Dashboard
-from lib.common import AbstractView
+from lib.common import AbstractView, get_dashboard_instance
 
 
 class View(QtWidgets.QTabWidget, AbstractView):
-    def __init__(self, dashboard_instance: Dashboard, widgets, active_tab=None):
+    def __init__(self, widgets, active_tab=None):
         super().__init__()
 
-        self.dashboard_instance = dashboard_instance
-
         self.tab_titles = {}
+        self.dashboard_instance = get_dashboard_instance()
 
         for child_widget in widgets:
             if "tab_title" in child_widget:
@@ -25,7 +23,7 @@ class View(QtWidgets.QTabWidget, AbstractView):
             else:
                 tab_id = None
 
-            self.add_tab(dashboard_instance.create_widget(child_widget), tab_title, tab_id)
+            self.add_tab(self.dashboard_instance.create_widget(child_widget), tab_title, tab_id)
 
         if active_tab is not None:
             self.setCurrentIndex(active_tab)

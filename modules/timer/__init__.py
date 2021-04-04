@@ -2,7 +2,7 @@ import os
 
 from PyQt5 import QtWidgets, QtCore, QtMultimedia, QtGui
 
-from lib.common import AbstractView, get_cache_path, disable_screensaver
+from lib.common import AbstractView, get_cache_path, disable_screensaver, get_dashboard_instance
 
 
 class ScrollingLCDNumber(QtWidgets.QLCDNumber):
@@ -65,13 +65,12 @@ class ScrollingLCDNumber(QtWidgets.QLCDNumber):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, dashboard_instance, disable_screensaver_while_active=False):
+    def __init__(self, disable_screensaver_while_active=False):
         super().__init__()
 
         self.timer_time = None
         self.is_active = False
         self.is_sound_playing = False
-        self.dashboard_instance = dashboard_instance
         self.disable_screensaver_while_active = disable_screensaver_while_active
         self.disable_screensaver_state = None
 
@@ -172,4 +171,4 @@ class View(QtWidgets.QWidget, AbstractView):
 
             if self.disable_screensaver_state != new_state:
                 self.disable_screensaver_state = new_state
-                disable_screensaver(self.dashboard_instance.winId(), new_state)
+                disable_screensaver(get_dashboard_instance().winId(), new_state)

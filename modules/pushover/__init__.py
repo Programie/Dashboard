@@ -6,8 +6,7 @@ import requests
 import websocket
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from dashboard import Dashboard
-from lib.common import AbstractView, ThreadedRequest, ThreadedDownloadAndCache, get_cache_path, RingBuffer
+from lib.common import AbstractView, ThreadedRequest, ThreadedDownloadAndCache, get_cache_path, RingBuffer, get_dashboard_instance
 
 
 class WebSocketThread(QtCore.QThread):
@@ -99,10 +98,9 @@ class ListWidget(QtWidgets.QTreeView):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, dashboard_instance: Dashboard, secret, device_id, tab_id_status=None):
+    def __init__(self, secret, device_id, tab_id_status=None):
         super().__init__()
 
-        self.dashboard_instance = dashboard_instance
         self.secret = secret
         self.device_id = device_id
         self.tab_id_status = tab_id_status
@@ -212,7 +210,7 @@ class View(QtWidgets.QWidget, AbstractView):
         if self.tab_id_status is None:
             return
 
-        tab_widget, tab_index = self.dashboard_instance.tab_by_id(self.tab_id_status)
+        tab_widget, tab_index = get_dashboard_instance().tab_by_id(self.tab_id_status)
         if tab_widget is not None:
             if self.unseen_messages:
                 tab_title = " ({})".format(self.unseen_messages)

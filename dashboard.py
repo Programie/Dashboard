@@ -13,21 +13,22 @@ import dbus.mainloop.glib
 import dbus.service
 import yaml
 
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PyQt5 import QtWidgets, QtGui, QtCore, QtDBus
 from PyQt5.QtWidgets import QTabWidget
 
-from lib.common import AbstractView
+from lib.common import AbstractView, set_dashboard_instance, get_dashboard_instance
 
 modules = {}
 
 
 class Dashboard(QtWidgets.QMainWindow):
     instance: "Dashboard" = None
+    screensaver_state_changed = QtCore.pyqtSignal(bool)
 
     def __init__(self, config_filepath: str, screens: List[QtGui.QScreen], session_dbus: dbus.Bus):
         super().__init__()
 
-        Dashboard.instance = self
+        set_dashboard_instance(self)
 
         self.session_dbus = session_dbus
         self.tabs: Dict[str, Tuple[QTabWidget, int]] = {}
@@ -88,6 +89,8 @@ class Dashboard(QtWidgets.QMainWindow):
                     if hasattr(widget_instance, "start_view"):
                         widget_instance.start_view()
 
+        self.register_screensaver_events()
+
         self.splash_screen.hide()
 
     def create_widget(self, config):
@@ -131,6 +134,17 @@ class Dashboard(QtWidgets.QMainWindow):
         self.splash_screen.showMessage(message, color=QtCore.Qt.white)
         QtCore.QCoreApplication.processEvents()
 
+    def register_screensaver_events(self):
+        session_bus = QtDBus.QDBusConnection.sessionBus()
+
+        session_bus.connect("org.freedesktop.ScreenSaver", "/org/freedesktop/ScreenSaver", "org.freedesktop.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
+        session_bus.connect("org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", "org.gnome.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
+        session_bus.connect("org.cinnamon.ScreenSaver", "/org/cinnamon/ScreenSaver", "org.cinnamon.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
+
+    @QtCore.pyqtSlot(bool)
+    def screensaver_active_changed(self, state):
+        self.screensaver_state_changed.emit(state)
+
     def closeEvent(self, event: QtGui.QCloseEvent):
         QtWidgets.QApplication.quit()
 
@@ -150,8 +164,9 @@ def exception_hook(exception_type, exception_value, exception_traceback):
     traceback_string = "".join(traceback.format_exception(exception_type, exception_value, exception_traceback))
     print(traceback_string, file=sys.stderr)
 
-    if Dashboard.instance:
-        Dashboard.instance.show_error(traceback_string)
+    dashboard_instance = get_dashboard_instance()
+    if dashboard_instance:
+        dashboard_instance.show_error(traceback_string)
     else:
         error_message = QtWidgets.QErrorMessage()
         error_message.showMessage(traceback_string, traceback_string)

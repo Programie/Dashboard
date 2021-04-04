@@ -9,6 +9,17 @@ from typing import Dict
 import requests
 from PyQt5 import QtCore, QtWidgets, QtChart, QtGui
 
+dashboard_instance = None
+
+
+def set_dashboard_instance(instance):
+    global dashboard_instance
+    dashboard_instance = instance
+
+
+def get_dashboard_instance():
+    return dashboard_instance
+
 
 class AbstractView:
     visibility_changed = QtCore.pyqtSignal(bool)
@@ -161,18 +172,26 @@ class ThreadedDownloadAndCache(QtCore.QThread):
 class Timer(QtCore.QObject):
     timeout = QtCore.pyqtSignal()
 
-    def __init__(self, parent, interval, view: AbstractView, auto_enable=True):
+    def __init__(self, parent, interval, view: AbstractView, auto_enable=True, ignore_screensaver=False):
         super().__init__(parent)
 
         self.timer = QtCore.QTimer(parent)
         self.timer.timeout.connect(self.emit)
 
         self.interval = interval
+        self.view = view
+        self.auto_enable = auto_enable
+        self.ignore_screensaver = ignore_screensaver
         self.last_emit = None
+        self.screensaver_state = False
 
-        if auto_enable:
-            view.visibility_changed.connect(self.visibility_changed)
-            self.visibility_changed(view.isVisible())
+        if self.auto_enable:
+            self.view.visibility_changed.connect(self.update_state_by_visibility)
+
+            if not self.ignore_screensaver:
+                get_dashboard_instance().screensaver_state_changed.connect(self.screensaver_state_changed)
+
+            self.update_state_by_visibility()
 
     def start(self):
         self.timer.start(self.interval)
@@ -183,8 +202,13 @@ class Timer(QtCore.QObject):
     def stop(self):
         self.timer.stop()
 
-    def visibility_changed(self, state: bool):
-        if state:
+    def update_state_by_visibility(self):
+        visible = self.view.isVisible()
+
+        if not self.ignore_screensaver and self.screensaver_state:
+            visible = False
+
+        if visible:
             self.start()
         else:
             self.stop()
@@ -192,6 +216,10 @@ class Timer(QtCore.QObject):
     def emit(self):
         self.last_emit = self.time()
         self.timeout.emit()
+
+    def screensaver_state_changed(self, state: bool):
+        self.screensaver_state = state
+        self.update_state_by_visibility()
 
     @staticmethod
     def time():
