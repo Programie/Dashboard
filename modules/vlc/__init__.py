@@ -4,7 +4,7 @@ import subprocess
 import vlc
 from PyQt5 import QtDBus, QtCore, QtWidgets
 
-from lib.common import AbstractView
+from lib.common import AbstractView, get_dashboard_instance
 
 
 class View(QtWidgets.QFrame, AbstractView):
@@ -28,21 +28,33 @@ class View(QtWidgets.QFrame, AbstractView):
         self.setFixedSize(QtCore.QSize(width, height))
 
         self.media_player = None
+        self.screensaver_state = False
         self.init_media_player()
 
         if stop_on_inactive:
-            self.visibility_changed.connect(self.set_playing_state)
+            self.visibility_changed.connect(self.update_state_by_visibility)
+            get_dashboard_instance().screensaver_state_changed.connect(self.screensaver_state_changed)
         else:
             self.play()
 
     def mouseDoubleClickEvent(self, event):
         subprocess.Popen(["vlc", self.open_url])
 
-    def set_playing_state(self, state: bool):
-        if state:
-            self.play()
+    def update_state_by_visibility(self):
+        visible = self.isVisible()
+
+        if self.screensaver_state:
+            visible = False
+
+        if visible:
+            if not self.media_player.is_playing():
+                self.play()
         else:
             self.stop()
+
+    def screensaver_state_changed(self, state: bool):
+        self.screensaver_state = state
+        self.update_state_by_visibility()
 
     def play(self):
         self.media_player.set_media(self.vlc_instance.media_new(self.url))
