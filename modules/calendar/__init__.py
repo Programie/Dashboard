@@ -12,10 +12,10 @@ import dbus.mainloop.glib
 import pandas
 from PyQt5 import QtCore, QtWidgets, QtGui
 from caldav.elements import ical
+from dateutil.tz import tzlocal
 from pytz import timezone
 from vobject import icalendar
 
-from dashboard import Dashboard
 from lib.common import Timer, AbstractView, get_dashboard_instance
 
 
@@ -41,7 +41,13 @@ class TodoItem:
         self.vtodo = todo.vobject_instance.vtodo
 
         if hasattr(self.vtodo, "due"):
-            self.due_datetime: datetime.datetime = self.vtodo.due.value
+            due_datetime = self.vtodo.due.value
+
+            # due datetime might be a date instead of datetime object, therefore convert it to a datetime object
+            if isinstance(due_datetime, datetime.date):
+                due_datetime = datetime.datetime.combine(due_datetime, datetime.datetime.min.time())
+
+            self.due_datetime: datetime.datetime = due_datetime.astimezone(timezone("UTC"))
         else:
             self.due_datetime = None
 
@@ -222,7 +228,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
             text = summary
 
             if todo_item.due_datetime is not None:
-                text = "{} ({})".format(summary, todo_item.due_datetime.strftime("%d.%m.%Y %H:%M"))
+                text = "{} ({})".format(summary, todo_item.due_datetime.astimezone(tzlocal()).strftime("%d.%m.%Y %H:%M"))
 
             list_item = QtWidgets.QTreeWidgetItem(parent_item)
 
