@@ -187,6 +187,7 @@ class Timer(QtCore.QObject):
 
         if self.auto_enable:
             self.view.visibility_changed.connect(self.update_state_by_visibility)
+            get_dashboard_instance().window_state_changed.connect(self.update_state_by_visibility)
 
             if not self.ignore_screensaver:
                 get_dashboard_instance().screensaver_state_changed.connect(self.screensaver_state_changed)
@@ -343,7 +344,7 @@ def disable_screensaver(window_id, state: bool):
 
 
 def is_visible(widget: QtWidgets.QWidget = None):
-    if get_dashboard_instance().windowState() & QtCore.Qt.WindowMinimized:
+    if not get_dashboard_instance().window_active:
         return False
 
     if widget is not None and not widget.isVisible():

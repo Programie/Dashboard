@@ -33,6 +33,7 @@ class View(QtWidgets.QFrame, AbstractView):
 
         if stop_on_inactive:
             self.visibility_changed.connect(self.update_state_by_visibility)
+            get_dashboard_instance().window_state_changed.connect(self.update_state_by_visibility)
             get_dashboard_instance().screensaver_state_changed.connect(self.screensaver_state_changed)
         else:
             self.play()

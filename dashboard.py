@@ -24,6 +24,9 @@ modules = {}
 class Dashboard(QtWidgets.QMainWindow):
     instance: "Dashboard" = None
     screensaver_state_changed = QtCore.pyqtSignal(bool)
+    window_state_changed = QtCore.pyqtSignal(QtCore.Qt.WindowState)
+    screensaver_active = False
+    window_active = False
 
     def __init__(self, config_filepath: str, screens: List[QtGui.QScreen], session_dbus: dbus.Bus):
         super().__init__()
@@ -145,10 +148,16 @@ class Dashboard(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(bool)
     def screensaver_active_changed(self, state):
+        self.screensaver_active = state
         self.screensaver_state_changed.emit(state)
 
     def closeEvent(self, event: QtGui.QCloseEvent):
         QtWidgets.QApplication.quit()
+
+    def changeEvent(self, event):
+        if event.type() == QtCore.QEvent.WindowStateChange:
+            self.window_active = not bool(self.windowState() & QtCore.Qt.WindowMinimized)
+            self.window_state_changed.emit(self.windowState())
 
 
 def import_modules(config):
