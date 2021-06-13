@@ -203,10 +203,10 @@ class Timer(QtCore.QObject):
         self.timer.stop()
 
     def update_state_by_visibility(self):
-        visible = self.view.isVisible()
-
         if not self.ignore_screensaver and self.screensaver_state:
             visible = False
+        else:
+            visible = is_visible(self.view)
 
         if visible:
             self.start()
@@ -340,3 +340,13 @@ def disable_screensaver(window_id, state: bool):
         subprocess.call(["xdg-screensaver", "suspend", str(int(window_id))])
     else:
         subprocess.call(["xdg-screensaver", "resume", str(int(window_id))])
+
+
+def is_visible(widget: QtWidgets.QWidget = None):
+    if get_dashboard_instance().windowState() & QtCore.Qt.WindowMinimized:
+        return False
+
+    if widget is not None and not widget.isVisible():
+        return False
+
+    return True
