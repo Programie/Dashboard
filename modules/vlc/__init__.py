@@ -4,7 +4,7 @@ import subprocess
 import vlc
 from PyQt5 import QtDBus, QtCore, QtWidgets
 
-from lib.common import AbstractView, get_dashboard_instance
+from lib.common import AbstractView, get_dashboard_instance, is_visible
 
 
 class View(QtWidgets.QFrame, AbstractView):
@@ -41,7 +41,7 @@ class View(QtWidgets.QFrame, AbstractView):
         subprocess.Popen(["vlc", self.open_url])
 
     def update_state_by_visibility(self):
-        visible = self.isVisible()
+        visible = is_visible(self)
 
         if self.screensaver_state:
             visible = False
