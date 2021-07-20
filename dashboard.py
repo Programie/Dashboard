@@ -96,6 +96,9 @@ class Dashboard(QtWidgets.QMainWindow):
 
         self.splash_screen.hide()
 
+        self.window_active = not bool(self.windowState() & QtCore.Qt.WindowMinimized)
+        self.window_state_changed.emit(self.windowState())
+
     def create_widget(self, config):
         widget_type = config["type"]
 
