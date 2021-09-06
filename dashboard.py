@@ -46,6 +46,8 @@ class Dashboard(QtWidgets.QMainWindow):
         with open(config_filepath, "r") as config_file:
             config = yaml.safe_load(config_file)
 
+            self.show_error_messages = config.get("show_error_messages", True)
+
             window_options = config.get("window_options", {})
 
             screen = window_options.get("screen", None)
@@ -134,6 +136,9 @@ class Dashboard(QtWidgets.QMainWindow):
         return instances[index]
 
     def show_error(self, message: str):
+        if not self.show_error_messages:
+            return
+
         self.error_message.showMessage(message, message)
 
     def update_splash_screen(self, message: str):
