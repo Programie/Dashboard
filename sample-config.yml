@@ -1,3 +1,9 @@
+# Alternative path to PID file
+pid_file: ~/.cache/dashboard.pid
+
+# Whether to show error messages in case of an exception thrown by a module or the dashboard itself
+show_error_messages: true
+
 # Various options affecting the dashboard window
 window_options:
   # The screen on which the dashboard should be displayed
