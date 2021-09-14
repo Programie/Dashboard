@@ -8,10 +8,11 @@ from lib.common import AbstractView, get_dashboard_instance, is_visible
 
 
 class View(QtWidgets.QFrame, AbstractView):
-    def __init__(self, url, width, height, open_url=None, stop_on_inactive=True, allow_screensaver=True):
+    def __init__(self, url, width, height, open_url=None, stop_on_inactive=True, allow_screensaver=True, auto_restart_playback=False):
         super().__init__(None)
 
         self.url = url
+        self.auto_restart_playback_active = False
 
         if open_url is not None:
             self.open_url = open_url
@@ -31,6 +32,11 @@ class View(QtWidgets.QFrame, AbstractView):
         self.screensaver_state = False
         self.init_media_player()
 
+        if auto_restart_playback:
+            self.update_timer = QtCore.QTimer(self)
+            self.update_timer.timeout.connect(self.update_auto_restart_playback)
+            self.update_timer.start(1000)
+
         if stop_on_inactive:
             self.visibility_changed.connect(self.update_state_by_visibility)
             get_dashboard_instance().window_state_changed.connect(self.update_state_by_visibility)
@@ -40,6 +46,10 @@ class View(QtWidgets.QFrame, AbstractView):
 
     def mouseDoubleClickEvent(self, event):
         subprocess.Popen(["vlc", self.open_url])
+
+    def update_auto_restart_playback(self):
+        if self.auto_restart_playback_active and self.media_player is not None and not self.media_player.is_playing():
+            self.play()
 
     def update_state_by_visibility(self):
         visible = is_visible(self)
@@ -61,7 +71,11 @@ class View(QtWidgets.QFrame, AbstractView):
         self.media_player.set_media(self.vlc_instance.media_new(self.url))
         self.media_player.play()
 
+        self.auto_restart_playback_active = True
+
     def stop(self):
+        self.auto_restart_playback_active = False
+
         self.media_player.stop()
 
     def init_media_player(self):
