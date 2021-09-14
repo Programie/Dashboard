@@ -30,7 +30,6 @@ class View(QtWidgets.QFrame, AbstractView):
 
         self.media_player = None
         self.screensaver_state = False
-        self.init_media_player()
 
         if auto_restart_playback:
             self.update_timer = QtCore.QTimer(self)
@@ -48,7 +47,7 @@ class View(QtWidgets.QFrame, AbstractView):
         subprocess.Popen(["vlc", self.open_url])
 
     def update_auto_restart_playback(self):
-        if self.auto_restart_playback_active and self.media_player is not None and not self.media_player.is_playing():
+        if self.auto_restart_playback_active and (self.media_player is None or not self.media_player.is_playing()):
             self.play()
 
     def update_state_by_visibility(self):
@@ -58,7 +57,7 @@ class View(QtWidgets.QFrame, AbstractView):
             visible = False
 
         if visible:
-            if not self.media_player.is_playing():
+            if self.media_player is None or not self.media_player.is_playing():
                 self.play()
         else:
             self.stop()
@@ -68,6 +67,11 @@ class View(QtWidgets.QFrame, AbstractView):
         self.update_state_by_visibility()
 
     def play(self):
+        if self.media_player is not None:
+            self.media_player.release()
+
+        self.init_media_player()
+
         self.media_player.set_media(self.vlc_instance.media_new(self.url))
         self.media_player.play()
 
@@ -76,7 +80,11 @@ class View(QtWidgets.QFrame, AbstractView):
     def stop(self):
         self.auto_restart_playback_active = False
 
-        self.media_player.stop()
+        if self.media_player is not None:
+            self.media_player.stop()
+
+            self.media_player.release()
+            self.media_player = None
 
     def init_media_player(self):
         self.media_player = self.vlc_instance.media_player_new()
@@ -98,10 +106,5 @@ class View(QtWidgets.QFrame, AbstractView):
                 break
 
         process_user_id = os.getuid()
-        if active_session_user_id == process_user_id:
-            if self.media_player is None:
-                self.init_media_player()
-        else:
-            if self.media_player is not None:
-                self.media_player.release()
-                self.media_player = None
+        if active_session_user_id != process_user_id and self.media_player is not None:
+            self.stop()
