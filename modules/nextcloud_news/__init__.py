@@ -155,6 +155,9 @@ class View(QtWidgets.QTreeWidget, AbstractView):
     def mark_selected_item_as_read(self):
         items = self.get_selected_items()
 
+        if not items:
+            return
+
         for item in items:
             self.mark_item_as_read(item)
 
