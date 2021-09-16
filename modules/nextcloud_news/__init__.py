@@ -1,5 +1,6 @@
 import datetime
 import subprocess
+from collections import OrderedDict
 
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
@@ -100,6 +101,8 @@ class View(QtWidgets.QTreeWidget, AbstractView):
                 grouped_items[feed] = []
 
             grouped_items[feed].append(entry)
+
+        grouped_items = OrderedDict(sorted(grouped_items.items(), key=lambda item: item[0].lower()))
 
         for feed, items in grouped_items.items():
             feed_item = QtWidgets.QTreeWidgetItem(self)
