@@ -42,7 +42,7 @@ class Updater(QtCore.QThread):
         self.ready.emit(items)
 
 
-class View(QtWidgets.QTreeView, AbstractView):
+class View(QtWidgets.QTreeWidget, AbstractView):
     def __init__(self, nextcloud_url, username, password, columns=None):
         super().__init__()
 
@@ -56,24 +56,16 @@ class View(QtWidgets.QTreeView, AbstractView):
         self.setRootIsDecorated(False)
         self.doubleClicked.connect(self.open_selected_items)
 
-        self.view_model = QtGui.QStandardItemModel(0, 4)
-        self.view_model.setHeaderData(0, QtCore.Qt.Horizontal, "Feed")
-        self.view_model.setHeaderData(1, QtCore.Qt.Horizontal, "Title")
-        self.view_model.setHeaderData(2, QtCore.Qt.Horizontal, "Date")
-        self.view_model.setHeaderData(3, QtCore.Qt.Horizontal, "ID")
-        self.setModel(self.view_model)
+        self.setHeaderLabels(["Title", "Date"])
 
-        self.setColumnWidth(0, 200)
-        self.setColumnWidth(1, 600)
-        self.setColumnWidth(2, 100)
+        self.setColumnWidth(1, 250)
 
-        # Do not show the ID
-        self.setColumnHidden(3, True)
+        self.header().setStretchLastSection(False)
+        self.header().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
 
         if columns:
-            self.setColumnHidden(0, "feed" not in columns)
-            self.setColumnHidden(1, "title" not in columns)
-            self.setColumnHidden(2, "date" not in columns)
+            self.setColumnHidden(0, "title" not in columns)
+            self.setColumnHidden(1, "date" not in columns)
 
         open_action = QtWidgets.QAction(self)
         open_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Return))
@@ -93,23 +85,39 @@ class View(QtWidgets.QTreeView, AbstractView):
         timer.timeout.connect(self.updater_thread.start)
 
     def update_data(self, items):
-        self.view_model.removeRows(0, self.view_model.rowCount())
+        self.clear()
 
-        for item in items:
-            self.news[item["id"]] = item
+        self.news = {}
 
-            self.view_model.appendRow([])
-            row = self.view_model.rowCount() - 1
+        grouped_items = {}
 
-            datetime_string = datetime.datetime.fromtimestamp(item["lastModified"]).strftime("%c")
+        for entry in items:
+            feed = entry["feed"]
 
-            self.view_model.setData(self.view_model.index(row, 0), item["feed"])
-            self.view_model.setData(self.view_model.index(row, 0), item["feed"], QtCore.Qt.ToolTipRole)
-            self.view_model.setData(self.view_model.index(row, 1), item["title"])
-            self.view_model.setData(self.view_model.index(row, 1), item["title"], QtCore.Qt.ToolTipRole)
-            self.view_model.setData(self.view_model.index(row, 2), datetime_string)
-            self.view_model.setData(self.view_model.index(row, 2), datetime_string, QtCore.Qt.ToolTipRole)
-            self.view_model.setData(self.view_model.index(row, 3), item["id"])
+            self.news[entry["id"]] = entry
+
+            if feed not in grouped_items:
+                grouped_items[feed] = []
+
+            grouped_items[feed].append(entry)
+
+        for feed, items in grouped_items.items():
+            feed_item = QtWidgets.QTreeWidgetItem(self)
+
+            feed_item.setText(0, feed)
+            feed_item.setExpanded(True)
+
+            for entry in items:
+                entry_item = QtWidgets.QTreeWidgetItem(feed_item)
+
+                datetime_string = datetime.datetime.fromtimestamp(entry["lastModified"]).strftime("%c")
+
+                entry_item.setData(0, QtCore.Qt.UserRole, entry)
+
+                entry_item.setText(0, entry["title"])
+                entry_item.setData(0, QtCore.Qt.ToolTipRole, entry["title"])
+                entry_item.setText(1, datetime_string)
+                entry_item.setData(1, QtCore.Qt.ToolTipRole, datetime_string)
 
     def get_selected_items(self):
         selected_model_indexes = self.selectedIndexes()
@@ -117,7 +125,10 @@ class View(QtWidgets.QTreeView, AbstractView):
         item_ids = set()
 
         for model_index in selected_model_indexes:
-            item_ids.add(model_index.siblingAtColumn(3).data())
+            entry = model_index.siblingAtColumn(0).data(QtCore.Qt.UserRole)
+
+            if entry:
+                item_ids.add(entry["id"])
 
         items = []
 
@@ -130,6 +141,9 @@ class View(QtWidgets.QTreeView, AbstractView):
 
     def open_selected_items(self):
         items = self.get_selected_items()
+
+        if not items:
+            return
 
         for item in items:
             subprocess.run(["xdg-open", item["url"]])
