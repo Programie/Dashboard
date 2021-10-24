@@ -430,8 +430,25 @@ class Event:
             start_datetime = self.vevent.getChildValue("dtstart")
             if isinstance(start_datetime, datetime.datetime):
                 start_datetime = start_datetime.astimezone().replace(tzinfo=None)
-            rule: dateutil.rrule.rruleset = dateutil.rrule.rrulestr(rrule, dtstart=start_datetime)
-            return rule.between(start_date, end_date, True)
+
+            exdate_list = self.vevent.getChildValue("exdate")
+
+            if not exdate_list:
+                exdate_list = []
+
+            for index, exdate in enumerate(exdate_list):
+                if isinstance(exdate, datetime.date):
+                    exdate = datetime.datetime(exdate.year, exdate.month, exdate.day)
+
+                exdate_list[index] = exdate.astimezone().replace(tzinfo=None)
+
+            rules = dateutil.rrule.rruleset()
+            rules.rrule(dateutil.rrule.rrulestr(rrule, dtstart=start_datetime))
+
+            for exdate in exdate_list:
+                rules.exdate(exdate)
+
+            return rules.between(start_date, end_date, True)
 
         datetime_start = self.vevent.getChildValue("dtstart")
         datetime_end = self.vevent.getChildValue("dtend")
