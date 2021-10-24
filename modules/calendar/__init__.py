@@ -612,7 +612,8 @@ class Updater(QtCore.QThread):
             end_date = today + datetime.timedelta(days=self.upcoming_days)
 
             for calendar in self.calendars:
-                events[str(calendar.url)] = calendar.date_search(start=start_date, end=end_date)
+                # TODO: Specifying end date in date_search does not return recurring events (at least with Nextcloud)
+                events[str(calendar.url)] = calendar.date_search(start=start_date)
 
                 calendar_todos = calendar.todos(sort_keys=self.sort_todos)
 
