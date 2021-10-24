@@ -486,13 +486,14 @@ class CalendarEventList(QtWidgets.QListWidget):
 
 
 class CalendarContainerWidget(QtWidgets.QStackedWidget):
-    def __init__(self, calendar_manager: "CalendarManager", default_calendar, updater_thread: "Updater", upcoming_days: int, past_days: int):
+    def __init__(self, calendar_manager: "CalendarManager", default_calendar, updater_thread: "Updater", upcoming_days: int, past_days: int, highlight_color: str):
         super().__init__()
 
         self.default_calendar = default_calendar
         self.updater_thread = updater_thread
         self.upcoming_days = upcoming_days
         self.past_days = past_days
+        self.highlight_color = highlight_color
         self.calendars = {str(calendar.url): calendar for calendar in calendar_manager.calendars}
         self.events = {}
 
@@ -538,7 +539,7 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
 
         highlight_format = QtGui.QTextCharFormat()
         highlight_format.setFontUnderline(True)
-        highlight_format.setForeground(QtGui.QBrush(QtGui.QColor("#FFD800")))
+        highlight_format.setForeground(QtGui.QBrush(QtGui.QColor(self.highlight_color)))
 
         self.events = {}
 
@@ -654,7 +655,7 @@ class CalendarManager:
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0):
+    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0, highlight_color="#FFD800"):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -673,7 +674,7 @@ class View(QtWidgets.QSplitter, AbstractView):
         self.updater = Updater(self.calendar_manager.unfiltered_calendars, sort_todos, todos_reversed, upcoming_days, past_days)
         self.updater.ready.connect(self.update_calendars)
 
-        self.calendar_widget = CalendarContainerWidget(self.calendar_manager, default_calendar, self.updater, upcoming_days, past_days)
+        self.calendar_widget = CalendarContainerWidget(self.calendar_manager, default_calendar, self.updater, upcoming_days, past_days, highlight_color)
         self.addWidget(self.calendar_widget)
 
         todo_parent_widget = QtWidgets.QWidget()
