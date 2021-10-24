@@ -413,14 +413,17 @@ class CalendarEventDialog(QtWidgets.QDialog):
 
 
 class Event:
-    def __init__(self, vevent: icalendar.RecurringComponent, calendar: Calendar):
+    def __init__(self, vevent: icalendar.RecurringComponent, calendar: Calendar, upcoming_days: int, past_days: int):
         self.vevent = vevent
         self.calendar = calendar
+        self.upcoming_days = upcoming_days
+        self.past_days = past_days
 
     def get_dates(self):
         today_date = datetime.date.today()
         today = datetime.datetime(today_date.year, today_date.month, today_date.day)
-        max_rule_date = today + datetime.timedelta(days=365)
+        start_date = today - datetime.timedelta(days=self.past_days)
+        end_date = today + datetime.timedelta(days=self.upcoming_days)
 
         rrule = self.vevent.getChildValue("rrule")
         if rrule:
@@ -428,7 +431,7 @@ class Event:
             if isinstance(start_datetime, datetime.datetime):
                 start_datetime = start_datetime.astimezone().replace(tzinfo=None)
             rule: dateutil.rrule.rruleset = dateutil.rrule.rrulestr(rrule, dtstart=start_datetime)
-            return rule.between(today, max_rule_date, True)
+            return rule.between(start_date, end_date, True)
 
         datetime_start = self.vevent.getChildValue("dtstart")
         datetime_end = self.vevent.getChildValue("dtend")
@@ -483,11 +486,13 @@ class CalendarEventList(QtWidgets.QListWidget):
 
 
 class CalendarContainerWidget(QtWidgets.QStackedWidget):
-    def __init__(self, calendar_manager: "CalendarManager", default_calendar, updater_thread: "Updater" = None):
+    def __init__(self, calendar_manager: "CalendarManager", default_calendar, updater_thread: "Updater", upcoming_days: int, past_days: int):
         super().__init__()
 
         self.default_calendar = default_calendar
         self.updater_thread = updater_thread
+        self.upcoming_days = upcoming_days
+        self.past_days = past_days
         self.calendars = {str(calendar.url): calendar for calendar in calendar_manager.calendars}
         self.events = {}
 
@@ -518,10 +523,12 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
             dialog.move(position)
 
     def update_events(self, events_per_calendar: Dict[str, List[caldav.Event]]):
-        today_date = datetime.date.today()
-        today = datetime.datetime(today_date.year, today_date.month, today_date.day)
+        today = datetime.date.today()
+        start_date = today - datetime.timedelta(days=self.past_days)
+        end_date = today + datetime.timedelta(days=self.upcoming_days)
 
-        self.calendar_widget.setMinimumDate(QtCore.QDate(today.year, today.month, today.day))
+        self.calendar_widget.setMinimumDate(QtCore.QDate(start_date.year, start_date.month, start_date.day))
+        self.calendar_widget.setMaximumDate(QtCore.QDate(end_date.year, end_date.month, end_date.day))
 
         for date in self.calendar_widget.dateTextFormat().keys():
             self.calendar_widget.setDateTextFormat(date, QtGui.QTextCharFormat())
@@ -537,13 +544,13 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
 
         for calendar_url, events in events_per_calendar.items():
             for event in events:
-                event = Event(event.vobject_instance.vevent, self.calendars[calendar_url])
+                event = Event(event.vobject_instance.vevent, self.calendars[calendar_url], self.upcoming_days, self.past_days)
 
                 for date in event.get_dates():
                     date_object = QtCore.QDate(date.year, date.month, date.day)
                     self.calendar_widget.setDateTextFormat(date_object, highlight_format)
 
-                    if date.date() == today_date:
+                    if date.date() == today:
                         text_format: QtGui.QTextCharFormat = self.calendar_widget.dateTextFormat(date_object)
                         text_format.setFontWeight(QtGui.QFont.Bold)
                         self.calendar_widget.setDateTextFormat(date_object, text_format)
@@ -581,20 +588,26 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
 class Updater(QtCore.QThread):
     ready = QtCore.pyqtSignal(dict, dict)
 
-    def __init__(self, calendars: List[caldav.Calendar], sort_todos: List[str], todos_reversed: bool):
+    def __init__(self, calendars: List[caldav.Calendar], sort_todos: List[str], todos_reversed: bool, upcoming_days: int, past_days: int):
         QtCore.QThread.__init__(self)
 
         self.calendars = calendars
         self.sort_todos = sort_todos
         self.todos_reversed = todos_reversed
+        self.upcoming_days = upcoming_days
+        self.past_days = past_days
 
     def run(self):
         try:
             events = {}
             todos = {}
 
+            today = datetime.date.today()
+            start_date = today - datetime.timedelta(days=self.past_days)
+            end_date = today + datetime.timedelta(days=self.upcoming_days)
+
             for calendar in self.calendars:
-                events[str(calendar.url)] = calendar.date_search(start=datetime.date.today())
+                events[str(calendar.url)] = calendar.date_search(start=start_date, end=end_date)
 
                 calendar_todos = calendar.todos(sort_keys=self.sort_todos)
 
@@ -641,7 +654,7 @@ class CalendarManager:
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False):
+    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -657,10 +670,10 @@ class View(QtWidgets.QSplitter, AbstractView):
 
         self.important_icon = QtGui.QIcon.fromTheme("error-app-symbolic")
 
-        self.updater = Updater(self.calendar_manager.unfiltered_calendars, sort_todos, todos_reversed)
+        self.updater = Updater(self.calendar_manager.unfiltered_calendars, sort_todos, todos_reversed, upcoming_days, past_days)
         self.updater.ready.connect(self.update_calendars)
 
-        self.calendar_widget = CalendarContainerWidget(self.calendar_manager, default_calendar, self.updater)
+        self.calendar_widget = CalendarContainerWidget(self.calendar_manager, default_calendar, self.updater, upcoming_days, past_days)
         self.addWidget(self.calendar_widget)
 
         todo_parent_widget = QtWidgets.QWidget()
