@@ -537,6 +537,10 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
         self.calendar_widget.setWeekdayTextFormat(QtCore.Qt.Saturday, QtGui.QTextCharFormat())
         self.calendar_widget.setWeekdayTextFormat(QtCore.Qt.Sunday, QtGui.QTextCharFormat())
 
+        today_format = QtGui.QTextCharFormat()
+        today_format.setFontWeight(QtGui.QFont.Bold)
+        self.calendar_widget.setDateTextFormat(QtCore.QDate(today.year, today.month, today.day), today_format)
+
         highlight_format = QtGui.QTextCharFormat()
         highlight_format.setFontUnderline(True)
         highlight_format.setForeground(QtGui.QBrush(QtGui.QColor(self.highlight_color)))
