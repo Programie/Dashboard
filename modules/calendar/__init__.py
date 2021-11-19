@@ -44,7 +44,7 @@ class TodoItem:
             due_datetime = self.vtodo.due.value
 
             # due datetime might be a date instead of datetime object, therefore convert it to a datetime object
-            if isinstance(due_datetime, datetime.date):
+            if not isinstance(due_datetime, datetime.datetime):
                 due_datetime = datetime.datetime.combine(due_datetime, datetime.datetime.min.time())
 
             self.due_datetime: datetime.datetime = due_datetime.astimezone(timezone("UTC"))
