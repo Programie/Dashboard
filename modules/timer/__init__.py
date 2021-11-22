@@ -1,4 +1,5 @@
 import os
+import re
 
 from PyQt5 import QtWidgets, QtCore, QtMultimedia, QtGui
 
@@ -28,6 +29,16 @@ class ScrollingLCDNumber(QtWidgets.QLCDNumber):
 
         if event.key() == QtCore.Qt.Key_Control:
             self.control_pressed = False
+        elif self.editable:
+            time_input = "{:02d}{:02d}{:02d}".format(self.time.hour(), self.time.minute(), self.time.second())
+
+            if event.key() == QtCore.Qt.Key_Backspace:
+                self.update_time_from_text("0{}".format(time_input)[:6])
+            else:
+                text = event.text()
+
+                if text != "" and re.match(r"^[0-9]$", text):
+                    self.update_time_from_text("{}{}".format(time_input, text)[-6:])
 
     def focusOutEvent(self, event: QtGui.QFocusEvent):
         self.control_pressed = False
@@ -59,6 +70,18 @@ class ScrollingLCDNumber(QtWidgets.QLCDNumber):
             if self.editable:
                 self.time = QtCore.QTime(0, 0, 0)
                 self.update_display()
+
+    def update_time_from_text(self, text):
+        hours = int(text[0:2])
+        minutes = int(text[2:4])
+        seconds = int(text[4:6])
+
+        if hours > 23 or minutes > 59 or seconds > 59:
+            return
+
+        self.time = QtCore.QTime(hours, minutes, seconds)
+
+        self.update_display()
 
     def update_display(self):
         self.display("{:02d}:{:02d}:{:02d}".format(self.time.hour(), self.time.minute(), self.time.second()))
