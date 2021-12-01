@@ -734,19 +734,28 @@ class View(QtWidgets.QSplitter, AbstractView):
 
         default_page = None
 
+        if todo_lists is None:
+            todo_lists = [calendar.name for calendar in self.calendar_manager.todo_lists]
+
+        todo_tabs = []
+
         calendar: Calendar
         for calendar in self.calendar_manager.todo_lists:
-            if todo_lists is not None and calendar.name not in todo_lists:
+            if calendar.name not in todo_lists:
                 continue
 
             todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager)
 
             self.todo_lists[str(calendar.url)] = todo_list_widget
-
-            self.todo_tab_widget.addTab(todo_list_widget, calendar.name)
+            todo_tabs.append((todo_list_widget, calendar.name))
 
             if default_todo_list is not None and calendar.name == default_todo_list:
                 default_page = todo_list_widget
+
+        todo_tabs = sorted(todo_tabs, key=lambda item: todo_lists.index(item[1]))
+
+        for todo_list_widget, calendar_name in todo_tabs:
+            self.todo_tab_widget.addTab(todo_list_widget, calendar_name)
 
         if default_page is not None:
             self.todo_tab_widget.setCurrentWidget(default_page)
