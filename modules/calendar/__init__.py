@@ -677,7 +677,7 @@ class CalendarManager:
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, url, username, password, default_calendar=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0, highlight_color="#FFD800"):
+    def __init__(self, url, username, password, default_calendar=None, todo_lists=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0, highlight_color="#FFD800"):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -736,6 +736,9 @@ class View(QtWidgets.QSplitter, AbstractView):
 
         calendar: Calendar
         for calendar in self.calendar_manager.todo_lists:
+            if todo_lists is not None and calendar.name not in todo_lists:
+                continue
+
             todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager)
 
             self.todo_lists[str(calendar.url)] = todo_list_widget
