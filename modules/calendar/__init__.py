@@ -472,8 +472,8 @@ class Event:
 
         summary = self.get_summary()
 
-        if isinstance(datetime_start, datetime.time):
-            return "{}: {}".format(datetime_start.strftime("%H:%i"), summary)
+        if isinstance(datetime_start, datetime.datetime):
+            return "{} {}".format(datetime_start.strftime("%H:%M"), summary)
         else:
             return summary
 
