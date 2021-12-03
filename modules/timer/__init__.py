@@ -6,60 +6,30 @@ from PyQt5 import QtWidgets, QtCore, QtMultimedia, QtGui
 from lib.common import AbstractView, get_cache_path, disable_screensaver, get_dashboard_instance
 
 
-class ScrollingLCDNumber(QtWidgets.QLCDNumber):
+class DisplayWidget(QtWidgets.QLCDNumber):
     clicked = QtCore.pyqtSignal()
 
     def __init__(self):
         super().__init__()
 
-        self.control_pressed = False
-        self.time = QtCore.QTime(0, 0, 0)
+        self.time_input = "000000"
         self.editable = True
 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent):
-        super().keyPressEvent(event)
-
-        if event.key() == QtCore.Qt.Key_Control:
-            self.control_pressed = True
-
     def keyReleaseEvent(self, event: QtGui.QKeyEvent):
         super().keyReleaseEvent(event)
 
-        if event.key() == QtCore.Qt.Key_Control:
-            self.control_pressed = False
-        elif self.editable:
-            time_input = "{:02d}{:02d}{:02d}".format(self.time.hour(), self.time.minute(), self.time.second())
-
+        if self.editable:
             if event.key() == QtCore.Qt.Key_Backspace:
-                self.update_time_from_text("0{}".format(time_input)[:6])
+                self.time_input = "0{}".format(self.time_input)[:6]
             else:
                 text = event.text()
 
                 if text != "" and re.match(r"^[0-9]$", text):
-                    self.update_time_from_text("{}{}".format(time_input, text)[-6:])
+                    self.time_input = "{}{}".format(self.time_input, text)[-6:]
 
-    def focusOutEvent(self, event: QtGui.QFocusEvent):
-        self.control_pressed = False
-
-    def wheelEvent(self, event: QtGui.QWheelEvent):
-        super().wheelEvent(event)
-
-        if not self.editable:
-            return
-
-        if event.angleDelta().y() > 0:
-            add_number = 1
-        else:
-            add_number = -1
-
-        if self.control_pressed:
-            self.time = self.time.addSecs(add_number * 60)
-        else:
-            self.time = self.time.addSecs(add_number)
-
-        self.update_display()
+            self.update_display()
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.LeftButton:
@@ -68,23 +38,32 @@ class ScrollingLCDNumber(QtWidgets.QLCDNumber):
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.LeftButton:
             if self.editable:
-                self.time = QtCore.QTime(0, 0, 0)
+                self.time_input = "000000"
                 self.update_display()
 
-    def update_time_from_text(self, text):
-        hours = int(text[0:2])
-        minutes = int(text[2:4])
-        seconds = int(text[4:6])
+    def set_time(self, time: QtCore.QTime):
+        self.time_input = "{:02d}{:02d}{:02d}".format(time.hour(), time.minute(), time.second())
 
-        if hours > 23 or minutes > 59 or seconds > 59:
-            return
+    def get_time(self):
+        hours, minutes, seconds = self.parse_time()
 
-        self.time = QtCore.QTime(hours, minutes, seconds)
+        hour_seconds = int(hours) * 60 * 60
+        minute_seconds = int(minutes) * 60
+        seconds = int(seconds)
 
-        self.update_display()
+        return QtCore.QTime(0, 0, 0).addSecs(hour_seconds + minute_seconds + seconds)
+
+    def parse_time(self):
+        hours = self.time_input[0:2]
+        minutes = self.time_input[2:4]
+        seconds = self.time_input[4:6]
+
+        return hours, minutes, seconds
 
     def update_display(self):
-        self.display("{:02d}:{:02d}:{:02d}".format(self.time.hour(), self.time.minute(), self.time.second()))
+        hours, minutes, seconds = self.parse_time()
+
+        self.display("{}:{}:{}".format(hours, minutes, seconds))
 
 
 class View(QtWidgets.QWidget, AbstractView):
@@ -102,7 +81,7 @@ class View(QtWidgets.QWidget, AbstractView):
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
 
-        self.display_widget = ScrollingLCDNumber()
+        self.display_widget = DisplayWidget()
         self.display_widget.setDigitCount(8)
         self.display_widget.clicked.connect(self.stop_alarm)
         layout.addWidget(self.display_widget, 1)
@@ -148,7 +127,7 @@ class View(QtWidgets.QWidget, AbstractView):
         time = QtCore.QTime(0, 0, 0).addMSecs(remaining_time)
 
         if not self.display_widget.editable:
-            self.display_widget.time = time
+            self.display_widget.set_time(time)
             self.display_widget.update_display()
 
         if self.is_sound_playing or self.is_active:
@@ -167,7 +146,12 @@ class View(QtWidgets.QWidget, AbstractView):
             if os.path.exists(self.remaining_time_file):
                 os.unlink(self.remaining_time_file)
         else:
-            self.timer_time = QtCore.QTime(self.display_widget.time)
+            self.timer_time = self.display_widget.get_time()
+
+            if not self.timer_time.isValid():
+                QtWidgets.QMessageBox.critical(self, self.windowTitle(), "Invalid time!")
+                return
+
             self.start_timer()
 
             with open(self.remaining_time_file, "w") as timestamp_file:
