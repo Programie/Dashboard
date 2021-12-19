@@ -8,6 +8,7 @@ from lib.common import AbstractView, get_cache_path, disable_screensaver, get_da
 
 class DisplayWidget(QtWidgets.QLCDNumber):
     clicked = QtCore.pyqtSignal()
+    return_pressed = QtCore.pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -19,6 +20,10 @@ class DisplayWidget(QtWidgets.QLCDNumber):
 
     def keyReleaseEvent(self, event: QtGui.QKeyEvent):
         super().keyReleaseEvent(event)
+
+        if event.key() == QtCore.Qt.Key_Return:
+            self.return_pressed.emit()
+            return
 
         if self.editable:
             if event.key() == QtCore.Qt.Key_Backspace:
@@ -84,6 +89,7 @@ class View(QtWidgets.QWidget, AbstractView):
         self.display_widget = DisplayWidget()
         self.display_widget.setDigitCount(8)
         self.display_widget.clicked.connect(self.stop_alarm)
+        self.display_widget.return_pressed.connect(self.button_action)
         layout.addWidget(self.display_widget, 1)
 
         self.button = QtWidgets.QPushButton()
