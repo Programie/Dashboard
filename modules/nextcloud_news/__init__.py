@@ -25,7 +25,7 @@ class Updater(QtCore.QThread):
         for feed in request.json()["feeds"]:
             feeds[int(feed["id"])] = feed["title"]
 
-        request = requests.get("{}/items".format(self.base_url), auth=self.auth, params={"type": 3, "getRead": False, "batchSize": -1})
+        request = requests.get("{}/items".format(self.base_url), auth=self.auth, params={"type": 3, "getRead": "false", "batchSize": -1})
 
         items = []
 
