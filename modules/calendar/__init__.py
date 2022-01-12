@@ -285,7 +285,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
             self.add_from_list(list_item, [child_item for child_item in todo_item.children.values()])
 
-    def show_todo(self, list_item: QtWidgets.QListWidgetItem):
+    def show_todo(self, list_item: QtWidgets.QTreeWidgetItem):
         if list_item is None:
             return
 
@@ -293,7 +293,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
         TodoDialog(self, self.calendar_manager.todo_lists, self.calendar.name, todo_item, self.view_widget.updater)
 
-    def update_todo(self, list_item: QtWidgets.QListWidgetItem):
+    def update_todo(self, list_item: QtWidgets.QTreeWidgetItem):
         todo_item: TodoItem = list_item.data(0, QtCore.Qt.UserRole)
 
         if list_item.checkState(0) == QtCore.Qt.Checked:
