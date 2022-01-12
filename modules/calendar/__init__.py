@@ -10,6 +10,7 @@ import caldav
 import dbus.service
 import dbus.mainloop.glib
 import pandas
+import pytz
 from PyQt5 import QtCore, QtWidgets, QtGui
 from caldav.elements import ical
 from dateutil.tz import tzlocal
@@ -141,6 +142,21 @@ class TodoDialog(QtWidgets.QDialog):
 
         layout.addWidget(self.notes_widget, 2, 1)
 
+        self.use_due_date_checkbox = QtWidgets.QCheckBox("Due Date")
+        self.use_due_date_checkbox.stateChanged.connect(self.update_due_date_widget)
+        layout.addWidget(self.use_due_date_checkbox, 3, 0)
+
+        self.due_date_widget = QtWidgets.QDateTimeEdit(QtCore.QDateTime.currentDateTime())
+        layout.addWidget(self.due_date_widget, 3, 1)
+
+        if todo_item is not None and todo_item.due_datetime is not None:
+            due_date = todo_item.due_datetime.astimezone(tzlocal())
+
+            self.use_due_date_checkbox.setChecked(True)
+            self.due_date_widget.setDateTime(QtCore.QDateTime(due_date.year, due_date.month, due_date.day, due_date.hour, due_date.minute, due_date.second))
+
+        self.update_due_date_widget()
+
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         layout.addWidget(button_box, 4, 0, 1, -1)
 
@@ -150,10 +166,23 @@ class TodoDialog(QtWidgets.QDialog):
         self.show()
         self.setFixedSize(self.size())
 
+    def update_due_date_widget(self):
+        self.due_date_widget.setEnabled(self.use_due_date_checkbox.isChecked())
+
     def save(self):
         calendar: caldav.Calendar = self.calendar_dropdown.currentData(QtCore.Qt.UserRole)
         title = self.title_widget.text().strip()
         notes = self.notes_widget.toPlainText().strip()
+
+        if self.use_due_date_checkbox.isChecked():
+            due_datetime = self.due_date_widget.dateTime().toUTC()
+
+            due_date = due_datetime.date()
+            due_time = due_datetime.time()
+
+            due_date = datetime.datetime(due_date.year(), due_date.month(), due_date.day(), due_time.hour(), due_time.minute(), due_time.second(), tzinfo=pytz.UTC)
+        else:
+            due_date = None
 
         if not title:
             QtWidgets.QMessageBox.critical(self, self.windowTitle(), "No title given!")
@@ -171,6 +200,14 @@ class TodoDialog(QtWidgets.QDialog):
                 self.todo_item.vtodo.description.value = notes
             else:
                 self.todo_item.vtodo.add("description").value = notes
+
+            if due_date:
+                if hasattr(self.todo_item.vtodo, "due"):
+                    self.todo_item.vtodo.due.value = due_date
+                else:
+                    self.todo_item.vtodo.add("due").value = due_date
+            elif hasattr(self.todo_item.vtodo, "due"):
+                del self.todo_item.vtodo.due
 
             self.todo_item.todo.save()
 
