@@ -71,8 +71,17 @@ class TodoItem:
 
         return self.due_datetime < datetime.datetime.now(tz=timezone("UTC"))
 
+    def get_summary(self):
+        if hasattr(self.vtodo, "summary"):
+            return self.vtodo.summary.value
+        else:
+            return None
+
     def complete(self):
         self.todo.complete()
+
+    def remove(self):
+        self.todo.delete()
 
     @staticmethod
     def create(calendar: caldav.Calendar, summary: str, description: str = ""):
@@ -230,6 +239,40 @@ class TodoListWidget(QtWidgets.QTreeWidget):
         self.setHeaderHidden(True)
         self.itemChanged.connect(self.update_todo)
         self.itemDoubleClicked.connect(self.show_todo)
+
+        self.context_menu = QtWidgets.QMenu()
+        self.context_menu.addAction("Edit", self.menu_edit_todo)
+        self.context_menu.addSeparator()
+        self.context_menu.addAction("Delete", self.menu_remove_todo)
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, position):
+        if not self.itemAt(position):
+            return
+
+        self.context_menu.exec(self.mapToGlobal(position))
+
+    def menu_edit_todo(self):
+        selected_items = self.selectedItems()
+
+        if len(selected_items) == 0:
+            return
+
+        self.show_todo(selected_items[0])
+
+    def menu_remove_todo(self):
+        selected_items = self.selectedItems()
+
+        if len(selected_items) == 0:
+            return
+
+        todo_item: TodoItem = selected_items[0].data(0, QtCore.Qt.UserRole)
+
+        if QtWidgets.QMessageBox.question(self, "Remove todo", "Are you sure to remove the selected todo '{}'?".format(todo_item.get_summary())) == QtWidgets.QMessageBox.Yes:
+            todo_item.remove()
+            self.updater_thread.start()
 
     def update_items(self, todos):
         todo_items = {}
