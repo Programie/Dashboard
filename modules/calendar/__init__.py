@@ -218,12 +218,13 @@ class TodoDialog(QtWidgets.QDialog):
 
 
 class TodoListWidget(QtWidgets.QTreeWidget):
-    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager"):
+    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager", updater_thread: "Updater"):
         super().__init__()
 
         self.view_widget = view_widget
         self.calendar = calendar
         self.calendar_manager = calendar_manager
+        self.updater_thread = updater_thread
         self.overdue_todo_item = None
 
         self.setHeaderHidden(True)
@@ -298,6 +299,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
         if list_item.checkState(0) == QtCore.Qt.Checked:
             todo_item.complete()
+            self.updater_thread.start()
 
 
 class Calendar(caldav.Calendar):
@@ -781,7 +783,7 @@ class View(QtWidgets.QSplitter, AbstractView):
             if calendar.name not in todo_lists:
                 continue
 
-            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager)
+            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater)
 
             self.todo_lists[str(calendar.url)] = todo_list_widget
             todo_tabs.append((todo_list_widget, calendar.name))
