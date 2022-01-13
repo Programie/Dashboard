@@ -41,16 +41,16 @@ class TodoItem:
         self.todo = todo
         self.vtodo = todo.vobject_instance.vtodo
 
-        if hasattr(self.vtodo, "due"):
-            due_datetime = self.vtodo.due.value
+        if hasattr(self.vtodo, "dtstart"):
+            start_datetime = self.vtodo.dtstart.value
 
-            # due datetime might be a date instead of datetime object, therefore convert it to a datetime object
-            if not isinstance(due_datetime, datetime.datetime):
-                due_datetime = datetime.datetime.combine(due_datetime, datetime.datetime.min.time())
+            # dtstart datetime might be a date instead of datetime object, therefore convert it to a datetime object
+            if not isinstance(start_datetime, datetime.datetime):
+                start_datetime = datetime.datetime.combine(start_datetime, datetime.datetime.min.time())
 
-            self.due_datetime: datetime.datetime = due_datetime.astimezone(timezone("UTC"))
+            self.start_datetime: datetime.datetime = start_datetime.astimezone(timezone("UTC"))
         else:
-            self.due_datetime = None
+            self.start_datetime = None
 
     def add_child(self, item: "TodoItem"):
         self.children[item.get_id()] = item
@@ -66,10 +66,10 @@ class TodoItem:
             return None
 
     def is_overdue(self):
-        if self.due_datetime is None:
+        if self.start_datetime is None:
             return False
 
-        return self.due_datetime < datetime.datetime.now(tz=timezone("UTC"))
+        return self.start_datetime < datetime.datetime.now(tz=timezone("UTC"))
 
     def get_summary(self):
         if hasattr(self.vtodo, "summary"):
@@ -151,20 +151,20 @@ class TodoDialog(QtWidgets.QDialog):
 
         layout.addWidget(self.notes_widget, 2, 1)
 
-        self.use_due_date_checkbox = QtWidgets.QCheckBox("Due Date")
-        self.use_due_date_checkbox.stateChanged.connect(self.update_due_date_widget)
-        layout.addWidget(self.use_due_date_checkbox, 3, 0)
+        self.use_start_time_checkbox = QtWidgets.QCheckBox("Date/Time")
+        self.use_start_time_checkbox.stateChanged.connect(self.update_start_time_widget)
+        layout.addWidget(self.use_start_time_checkbox, 3, 0)
 
-        self.due_date_widget = QtWidgets.QDateTimeEdit(QtCore.QDateTime.currentDateTime())
-        layout.addWidget(self.due_date_widget, 3, 1)
+        self.start_time_widget = QtWidgets.QDateTimeEdit(QtCore.QDateTime.currentDateTime())
+        layout.addWidget(self.start_time_widget, 3, 1)
 
-        if todo_item is not None and todo_item.due_datetime is not None:
-            due_date = todo_item.due_datetime.astimezone(tzlocal())
+        if todo_item is not None and todo_item.start_datetime is not None:
+            start_datetime = todo_item.start_datetime.astimezone(tzlocal())
 
-            self.use_due_date_checkbox.setChecked(True)
-            self.due_date_widget.setDateTime(QtCore.QDateTime(due_date.year, due_date.month, due_date.day, due_date.hour, due_date.minute, due_date.second))
+            self.use_start_time_checkbox.setChecked(True)
+            self.start_time_widget.setDateTime(QtCore.QDateTime(start_datetime.year, start_datetime.month, start_datetime.day, start_datetime.hour, start_datetime.minute, start_datetime.second))
 
-        self.update_due_date_widget()
+        self.update_start_time_widget()
 
         button_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         layout.addWidget(button_box, 4, 0, 1, -1)
@@ -175,23 +175,23 @@ class TodoDialog(QtWidgets.QDialog):
         self.show()
         self.setFixedSize(self.size())
 
-    def update_due_date_widget(self):
-        self.due_date_widget.setEnabled(self.use_due_date_checkbox.isChecked())
+    def update_start_time_widget(self):
+        self.start_time_widget.setEnabled(self.use_start_time_checkbox.isChecked())
 
     def save(self):
         calendar: caldav.Calendar = self.calendar_dropdown.currentData(QtCore.Qt.UserRole)
         title = self.title_widget.text().strip()
         notes = self.notes_widget.toPlainText().strip()
 
-        if self.use_due_date_checkbox.isChecked():
-            due_datetime = self.due_date_widget.dateTime().toUTC()
+        if self.use_start_time_checkbox.isChecked():
+            start_datetime = self.start_time_widget.dateTime().toUTC()
 
-            due_date = due_datetime.date()
-            due_time = due_datetime.time()
+            start_date = start_datetime.date()
+            start_time = start_datetime.time()
 
-            due_date = datetime.datetime(due_date.year(), due_date.month(), due_date.day(), due_time.hour(), due_time.minute(), due_time.second(), tzinfo=pytz.UTC).astimezone(tzlocal())
+            start_datetime = datetime.datetime(start_date.year(), start_date.month(), start_date.day(), start_time.hour(), start_time.minute(), start_time.second(), tzinfo=pytz.UTC).astimezone(tzlocal())
         else:
-            due_date = None
+            start_datetime = None
 
         if not title:
             QtWidgets.QMessageBox.critical(self, self.windowTitle(), "No title given!")
@@ -210,20 +210,12 @@ class TodoDialog(QtWidgets.QDialog):
             else:
                 self.todo_item.vtodo.add("description").value = notes
 
-            if due_date:
-                if hasattr(self.todo_item.vtodo, "due"):
-                    self.todo_item.vtodo.due.value = due_date
-                else:
-                    self.todo_item.vtodo.add("due").value = due_date
-
+            if start_datetime:
                 if hasattr(self.todo_item.vtodo, "dtstart"):
-                    self.todo_item.vtodo.dtstart.value = due_date
+                    self.todo_item.vtodo.dtstart.value = start_datetime
                 else:
-                    self.todo_item.vtodo.add("dtstart").value = due_date
+                    self.todo_item.vtodo.add("dtstart").value = start_datetime
             else:
-                if hasattr(self.todo_item.vtodo, "due"):
-                    del self.todo_item.vtodo.due
-
                 if hasattr(self.todo_item.vtodo, "dtstart"):
                     del self.todo_item.vtodo.dtstart
 
@@ -317,8 +309,8 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
             text = summary
 
-            if todo_item.due_datetime is not None:
-                text = "{} ({})".format(summary, todo_item.due_datetime.astimezone(tzlocal()).strftime("%d.%m.%Y %H:%M"))
+            if todo_item.start_datetime is not None:
+                text = "{} ({})".format(summary, todo_item.start_datetime.astimezone(tzlocal()).strftime("%d.%m.%Y %H:%M"))
 
             list_item = QtWidgets.QTreeWidgetItem(parent_item)
 
@@ -329,7 +321,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
             list_item.setExpanded(True)
             list_item.setData(0, QtCore.Qt.UserRole, todo_item)
 
-            if todo_item.due_datetime is not None:
+            if todo_item.start_datetime is not None:
                 if todo_item.is_overdue():
                     self.overdue_todo_item = todo_item
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("red")))
@@ -768,7 +760,7 @@ class CalendarManager:
 
 
 class View(QtWidgets.QSplitter, AbstractView):
-    def __init__(self, url, username, password, default_calendar=None, todo_lists=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False, upcoming_days=365, past_days=0, highlight_color="#FFD800"):
+    def __init__(self, url, username, password, default_calendar=None, todo_lists=None, default_todo_list=None, sort_todos=("dtstart", "priority"), todos_reversed=False, upcoming_days=365, past_days=0, highlight_color="#FFD800"):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
