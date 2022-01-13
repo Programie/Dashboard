@@ -189,7 +189,7 @@ class TodoDialog(QtWidgets.QDialog):
             due_date = due_datetime.date()
             due_time = due_datetime.time()
 
-            due_date = datetime.datetime(due_date.year(), due_date.month(), due_date.day(), due_time.hour(), due_time.minute(), due_time.second(), tzinfo=pytz.UTC)
+            due_date = datetime.datetime(due_date.year(), due_date.month(), due_date.day(), due_time.hour(), due_time.minute(), due_time.second(), tzinfo=pytz.UTC).astimezone(tzlocal())
         else:
             due_date = None
 
