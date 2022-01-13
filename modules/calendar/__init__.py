@@ -215,8 +215,17 @@ class TodoDialog(QtWidgets.QDialog):
                     self.todo_item.vtodo.due.value = due_date
                 else:
                     self.todo_item.vtodo.add("due").value = due_date
-            elif hasattr(self.todo_item.vtodo, "due"):
-                del self.todo_item.vtodo.due
+
+                if hasattr(self.todo_item.vtodo, "dtstart"):
+                    self.todo_item.vtodo.dtstart.value = due_date
+                else:
+                    self.todo_item.vtodo.add("dtstart").value = due_date
+            else:
+                if hasattr(self.todo_item.vtodo, "due"):
+                    del self.todo_item.vtodo.due
+
+                if hasattr(self.todo_item.vtodo, "dtstart"):
+                    del self.todo_item.vtodo.dtstart
 
             self.todo_item.todo.save()
 
