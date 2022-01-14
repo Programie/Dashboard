@@ -33,6 +33,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         set_dashboard_instance(self)
 
+        self.overlay_widget = None
+
         self.session_dbus = session_dbus
         self.tabs: Dict[str, Tuple[QTabWidget, int]] = {}
         self.widget_instances: Dict[str, List[AbstractView]] = {}
