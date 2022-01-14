@@ -97,7 +97,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
             if "overlay_widget" in config:
                 self.overlay_widget: QtWidgets.QWidget = self.create_widget(config["overlay_widget"])
                 self.overlay_widget.setParent(self)
-                self.resize_overlay_widget()
+                self.overlay_widget.size_changed.connect(self.move_overlay_widget)
+                self.move_overlay_widget()
 
         self.register_screensaver_events()
 
@@ -106,7 +107,7 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         self.window_active = not bool(self.windowState() & QtCore.Qt.WindowMinimized)
         self.window_state_changed.emit(self.windowState())
 
-    def resize_overlay_widget(self):
+    def move_overlay_widget(self):
         if self.overlay_widget is None:
             return
 
@@ -191,7 +192,7 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         self.screensaver_state_changed.emit(state)
 
     def resizeEvent(self, event: QtGui.QResizeEvent):
-        self.resize_overlay_widget()
+        self.move_overlay_widget()
 
     def closeEvent(self, event: QtGui.QCloseEvent):
         QtWidgets.QApplication.quit()
