@@ -21,7 +21,7 @@ from lib.common import AbstractView, set_dashboard_instance, get_dashboard_insta
 modules = {}
 
 
-class Dashboard(QtWidgets.QMainWindow):
+class Dashboard(QtWidgets.QMainWindow, AbstractView):
     instance: "Dashboard" = None
     screensaver_state_changed = QtCore.pyqtSignal(bool)
     window_state_changed = QtCore.pyqtSignal(QtCore.Qt.WindowState)
@@ -94,12 +94,34 @@ class Dashboard(QtWidgets.QMainWindow):
                     if hasattr(widget_instance, "start_view"):
                         widget_instance.start_view()
 
+            if "overlay_widget" in config:
+                self.overlay_widget: QtWidgets.QWidget = self.create_widget(config["overlay_widget"])
+                self.overlay_widget.setParent(self)
+                self.resize_overlay_widget()
+
         self.register_screensaver_events()
 
         self.splash_screen.hide()
 
         self.window_active = not bool(self.windowState() & QtCore.Qt.WindowMinimized)
         self.window_state_changed.emit(self.windowState())
+
+    def resize_overlay_widget(self):
+        if self.overlay_widget is None:
+            return
+
+        size = self.overlay_widget.size()
+
+        x = self.width() / 2 - size.width() / 2
+        y = self.height() / 2 - size.height() / 2
+
+        if x < 0:
+            x = 0
+
+        if y < 0:
+            y = 0
+
+        self.overlay_widget.move(x, y)
 
     def create_widget(self, config):
         widget_type = config["type"]
@@ -111,11 +133,20 @@ class Dashboard(QtWidgets.QMainWindow):
         options = dict(config)
         del options["type"]
 
+        if "size" in options:
+            widget_size = QtCore.QSize(options["size"][0], options["size"][1])
+            del options["size"]
+        else:
+            widget_size = None
+
         parameters = inspect.signature(module.View.__init__).parameters
         if "dashboard_instance" in parameters:
             options["dashboard_instance"] = self
 
         widget = module.View(**options)
+
+        if widget_size:
+            widget.resize(widget_size)
 
         if widget_type not in self.widget_instances:
             self.widget_instances[widget_type] = []
@@ -158,6 +189,9 @@ class Dashboard(QtWidgets.QMainWindow):
     def screensaver_active_changed(self, state):
         self.screensaver_active = state
         self.screensaver_state_changed.emit(state)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent):
+        self.resize_overlay_widget()
 
     def closeEvent(self, event: QtGui.QCloseEvent):
         QtWidgets.QApplication.quit()
@@ -211,6 +245,9 @@ def main():
             pid_file = None
 
         import_modules(config["central_widget"])
+
+        if "overlay_widget" in config:
+            import_modules(config["overlay_widget"])
 
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("Dashboard")
