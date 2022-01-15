@@ -117,8 +117,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         size = self.overlay_widget.size()
 
-        x = self.width() / 2 - size.width() / 2
-        y = self.height() / 2 - size.height() / 2
+        x = int(self.width() / 2 - size.width() / 2)
+        y = int(self.height() / 2 - size.height() / 2)
 
         if x < 0:
             x = 0
