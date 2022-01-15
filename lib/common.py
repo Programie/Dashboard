@@ -23,6 +23,7 @@ def get_dashboard_instance():
 
 class AbstractView:
     visibility_changed = QtCore.pyqtSignal(bool)
+    size_changed = QtCore.pyqtSignal(QtGui.QResizeEvent)
 
     def showEvent(self, event: QtGui.QShowEvent):
         self.showEvent(event)
@@ -31,6 +32,10 @@ class AbstractView:
     def hideEvent(self, event: QtGui.QHideEvent):
         self.hideEvent(event)
         self.visibility_changed.emit(False)
+
+    def resizeEvent(self, event: QtGui.QResizeEvent):
+        self.resizeEvent(event)
+        self.size_changed.emit(event)
 
     def start_view(self):
         pass
