@@ -472,9 +472,9 @@ class CalendarEventDialog(QtWidgets.QDialog):
         day = date.day()
 
         if self.time_checkbox.isChecked():
-            start_date = datetime.datetime(year, month, day, start_time.hour(), start_time.minute(), start_time.second()).astimezone(tz=timezone("UTC"))
-            end_date = datetime.datetime(year, month, day, end_time.hour(), end_time.minute(), end_time.second()).astimezone(tz=timezone("UTC"))
-            date_format = "%Y%m%dT%H%M%SZ"
+            start_date = datetime.datetime(year, month, day, start_time.hour(), start_time.minute(), start_time.second())
+            end_date = datetime.datetime(year, month, day, end_time.hour(), end_time.minute(), end_time.second())
+            date_format = "%Y%m%dT%H%M%S"
         else:
             start_date = datetime.datetime(year, month, day)
             end_date = start_date + datetime.timedelta(days=1)
@@ -486,7 +486,7 @@ class CalendarEventDialog(QtWidgets.QDialog):
             "PRODID:-//Dashboard//CalDAV Client//EN",
             "BEGIN:VEVENT",
             "UID:{}@dashboard.selfcoders.com".format(uuid.uuid4()),
-            "DTSTAMP:{}".format(datetime.datetime.now().astimezone(tz=timezone("UTC")).strftime("%Y%m%dT%H%M%SZ")),
+            "DTSTAMP:{}".format(datetime.datetime.now().strftime("%Y%m%dT%H%M%S")),
             "DTSTART:{}".format(start_date.strftime(date_format)),
             "DTEND:{}".format(end_date.strftime(date_format)),
             "SUMMARY:{}".format(escape_ical_string(title)),
