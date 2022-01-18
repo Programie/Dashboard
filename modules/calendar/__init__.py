@@ -593,7 +593,7 @@ class CalendarEventList(QtWidgets.QListWidget):
             self.scrollToItem(items[0], QtWidgets.QListWidget.PositionAtTop)
 
 
-class CalendarContainerWidget(QtWidgets.QStackedWidget):
+class CalendarContainerWidget(QtWidgets.QWidget):
     def __init__(self, calendar_manager: "CalendarManager", default_calendar, updater_thread: "Updater", upcoming_days: int, past_days: int, highlight_color: str):
         super().__init__()
 
@@ -605,11 +605,8 @@ class CalendarContainerWidget(QtWidgets.QStackedWidget):
         self.calendars = {str(calendar.url): calendar for calendar in calendar_manager.calendars}
         self.events = {}
 
-        self.calendar_page_widget = QtWidgets.QWidget()
-        self.addWidget(self.calendar_page_widget)
-
         layout = QtWidgets.QVBoxLayout()
-        self.calendar_page_widget.setLayout(layout)
+        self.setLayout(layout)
 
         self.calendar_widget = QtWidgets.QCalendarWidget()
         self.calendar_widget.setFirstDayOfWeek(QtCore.Qt.Monday)
