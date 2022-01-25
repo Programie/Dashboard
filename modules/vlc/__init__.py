@@ -12,12 +12,8 @@ class View(QtWidgets.QFrame, AbstractView):
         super().__init__(None)
 
         self.url = url
+        self.open_url = open_url
         self.auto_restart_playback_active = False
-
-        if open_url is not None:
-            self.open_url = open_url
-        else:
-            self.open_url = url
 
         self.dbus = QtDBus.QDBusConnection.systemBus()
         self.dbus_login_manager = QtDBus.QDBusInterface("org.freedesktop.login1", "/org/freedesktop/login1", "org.freedesktop.login1.Manager", self.dbus)
@@ -44,6 +40,9 @@ class View(QtWidgets.QFrame, AbstractView):
             self.play()
 
     def mouseDoubleClickEvent(self, event):
+        if self.open_url is None:
+            return
+
         subprocess.Popen(["vlc", self.open_url])
 
     def update_auto_restart_playback(self):
