@@ -249,27 +249,75 @@ class Event:
 
 
 class CalendarEventList(QtWidgets.QListWidget):
-    def update_list(self, events):
+    def update_list(self, events, filter_string):
         self.clear()
 
         for date_string, date_events in events.items():
-            header_item = QtWidgets.QListWidgetItem(date_string)
-            header_item.setFlags(QtCore.Qt.NoItemFlags)
-
-            font = header_item.font()
-            font.setPointSize(font.pointSize() + 5)
-            header_item.setFont(font)
-            self.addItem(header_item)
+            header_created = False
 
             for date, event in date_events:
+                if filter_string != "" and filter_string.lower() not in event.get_summary().lower():
+                    continue
+
+                if not header_created:
+                    self.create_header_item(date_string)
+                    header_created = True
+
                 list_item = QtWidgets.QListWidgetItem(event.calendar.get_icon(), event.get_summary_with_time())
-                list_item.setData(QtCore.Qt.UserRole, (date, event))
+                list_item.setData(QtCore.Qt.ItemDataRole.UserRole, (date, event))
                 self.addItem(list_item)
+
+    def create_header_item(self, date_string):
+        item = QtWidgets.QListWidgetItem(date_string)
+        item.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+
+        font = item.font()
+        font.setPointSize(font.pointSize() + 5)
+        item.setFont(font)
+
+        self.addItem(item)
 
     def scroll_to_date(self, date: QtCore.QDate):
         items = self.findItems(date.toString("yyyy-MM-dd"), QtCore.Qt.MatchExactly)
         if items:
             self.scrollToItem(items[0], QtWidgets.QListWidget.PositionAtTop)
+
+
+class SearchBar(QtWidgets.QLineEdit):
+    search_triggered = QtCore.pyqtSignal(str)
+
+    def __init__(self):
+        super().__init__()
+
+        self.previous_focus = None
+
+        self.setPlaceholderText("Search...")
+
+        escape_action = QtWidgets.QAction(self)
+        escape_action.setShortcut(QtCore.Qt.Key.Key_Escape)
+        escape_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
+        escape_action.triggered.connect(self.deactivate)
+        self.addAction(escape_action)
+
+        self.textChanged.connect(self.search)
+
+    def search(self):
+        self.search_triggered.emit(self.text().strip())
+
+    def activate(self):
+        self.previous_focus = QtWidgets.QApplication.focusWidget()
+
+        self.setText("")
+        self.setVisible(True)
+        self.setFocus()
+
+    def deactivate(self):
+        self.setVisible(False)
+
+        if self.previous_focus:
+            self.previous_focus.setFocus()
+
+        self.search_triggered.emit("")
 
 
 class Updater(QtCore.QThread):
@@ -340,6 +388,7 @@ class View(QtWidgets.QWidget, AbstractView):
         calendar_manager = CalendarManager(url, username, password)
 
         self.events = {}
+        self.search_filter = ""
 
         self.updater = Updater(calendar_manager.unfiltered_calendars, upcoming_days, past_days)
         self.updater.ready.connect(self.update_events)
@@ -362,6 +411,16 @@ class View(QtWidgets.QWidget, AbstractView):
         self.event_list_widget = CalendarEventList()
         self.event_list_widget.currentItemChanged.connect(self.event_list_item_changed)
         layout.addWidget(self.event_list_widget, 1)
+
+        self.search_bar = SearchBar()
+        self.search_bar.search_triggered.connect(self.set_search_filter)
+        self.search_bar.deactivate()
+        layout.addWidget(self.search_bar, 0)
+
+        search_action = QtWidgets.QShortcut(self)
+        search_action.setKey(QtCore.Qt.Modifier.CTRL | QtCore.Qt.Key.Key_F)
+        search_action.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
+        search_action.activated.connect(self.search_bar.activate)
 
         timer = Timer(self, 300000, self)
         timer.timeout.connect(self.updater.start)
@@ -417,7 +476,7 @@ class View(QtWidgets.QWidget, AbstractView):
 
         self.events = OrderedDict(sorted(self.events.items()))
 
-        self.event_list_widget.update_list(self.events)
+        self.event_list_widget.update_list(self.events, self.search_filter)
         self.scroll_to_selected_date()
 
     def scroll_to_selected_date(self):
@@ -437,3 +496,8 @@ class View(QtWidgets.QWidget, AbstractView):
         block_signals = self.calendar_widget.blockSignals(True)
         self.calendar_widget.setSelectedDate(QtCore.QDate(date))
         self.calendar_widget.blockSignals(block_signals)
+
+    def set_search_filter(self, search_string):
+        self.search_filter = search_string
+
+        self.event_list_widget.update_list(self.events, self.search_filter)
