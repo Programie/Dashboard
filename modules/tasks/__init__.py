@@ -135,7 +135,12 @@ class TodoDialog(QtWidgets.QDialog):
         self.use_due_date_checkbox.stateChanged.connect(self.update_due_date_widget)
         layout.addWidget(self.use_due_date_checkbox, 3, 0)
 
-        self.due_date_widget = QtWidgets.QDateTimeEdit(QtCore.QDateTime.currentDateTime())
+        current_date_time = QtCore.QDateTime.currentDateTime()
+        current_time = current_date_time.time()
+        current_time.setHMS(current_time.hour() + 1, 0, 0, 0)
+        current_date_time.setTime(current_time)
+
+        self.due_date_widget = QtWidgets.QDateTimeEdit(current_date_time)
         layout.addWidget(self.due_date_widget, 3, 1)
 
         if todo_item is not None and todo_item.due_datetime is not None:
