@@ -10,3 +10,4 @@ Play any stream or video supported by [VLC media player](https://www.videolan.or
 * `open_url` (string): The URL to open in VLC once the widget is double clicked (default: same as `url`)
 * `stop_on_inactive` (boolean): Whether to stop the playback when the widget is inactive (i.e. minimized or tab not visible) (default: true)
 * `allow_screensaver` (boolean): Whether to allow the screensaver to be started while playback (default: true)
+* `auto_restart_playback` (boolean): Whether to automatically restart playback in case it stops (default: false)
