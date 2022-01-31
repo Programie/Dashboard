@@ -35,7 +35,6 @@ class View(QtMultimediaWidgets.QVideoWidget, AbstractView):
             self.play()
 
     def state_changed(self, new_state: QtMultimedia.QMediaPlayer.State):
-        print("state_changed", new_state)
         if self.playing and new_state != QtMultimedia.QMediaPlayer.State.PlayingState:
             self.play()
 
@@ -44,8 +43,6 @@ class View(QtMultimediaWidgets.QVideoWidget, AbstractView):
 
         if self.screensaver_state:
             visible = False
-
-        print("visible", visible)
 
         if visible:
             if self.player.state() != QtMultimedia.QMediaPlayer.State.PlayingState:
@@ -62,12 +59,10 @@ class View(QtMultimediaWidgets.QVideoWidget, AbstractView):
 
         self.playing = True
         self.player.play()
-        print("play")
 
     def stop(self):
         self.playing = False
         self.player.stop()
-        print("stop")
 
     @QtCore.pyqtSlot("QString", "QVariantMap")
     def login_seat_changed(self, interface, properties):
