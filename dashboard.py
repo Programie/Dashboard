@@ -21,6 +21,17 @@ from lib.common import AbstractView, set_dashboard_instance, get_dashboard_insta
 modules = {}
 
 
+class DBusHandler(dbus.service.Object):
+    def __init__(self, dashboard_instance: "Dashboard", session_bus: dbus.Bus):
+        dbus.service.Object.__init__(self, session_bus, "/")
+
+        self.dashboard_instance = dashboard_instance
+
+    @dbus.service.method("com.selfcoders.Dashboard", in_signature="b", out_signature="")
+    def fake_screensaver(self, state: bool):
+        self.dashboard_instance.screensaver_active_changed(state)
+
+
 class Dashboard(QtWidgets.QMainWindow, AbstractView):
     instance: "Dashboard" = None
     screensaver_state_changed = QtCore.pyqtSignal(bool)
@@ -121,6 +132,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         self.window_active = not bool(self.windowState() & QtCore.Qt.WindowMinimized)
         self.window_state_changed.emit(self.windowState())
+
+        DBusHandler(self, self.session_dbus)
 
     def move_overlay_widget(self):
         if self.overlay_widget is None:
