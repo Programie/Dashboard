@@ -199,6 +199,7 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         session_bus.connect("org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", "org.gnome.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
         session_bus.connect("org.cinnamon.ScreenSaver", "/org/cinnamon/ScreenSaver", "org.cinnamon.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
         session_bus.connect("org.kde.ScreenSaver", "/org/kde/ScreenSaver", "org.kde.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
+        session_bus.connect("org.mate.ScreenSaver", "/org/mate/ScreenSaver", "org.mate.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
         session_bus.connect("org.xfce.ScreenSaver", "/org/xfce/ScreenSaver", "org.xfce.ScreenSaver", "ActiveChanged", self.screensaver_active_changed)
 
     @QtCore.pyqtSlot(bool)
