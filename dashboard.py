@@ -85,6 +85,17 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
             self.setWindowFlags(window_flags)
 
+            font_options = config.get("font", {})
+            font = self.font()
+
+            if "family" in font_options:
+                font.setFamily(font_options.get("family"))
+
+            if "size" in font_options:
+                font.setPointSize(font_options.get("size"))
+
+            self.setFont(font)
+
             if window_options.get("maximize", True):
                 self.showMaximized()
 

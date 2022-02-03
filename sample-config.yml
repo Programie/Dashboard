@@ -27,6 +27,14 @@ window_options:
   # Maximize the window
   maximize: true
 
+# Configure font used for the whole Dashboard
+font:
+  # Font Family to use
+  family: Ubuntu
+
+  # Font size to use
+  size: 12
+
 # Configuration of the main (central) widget, usually a container, splitter or tab widget
 central_widget:
   # The type of the widget (any widget module name like "container", "tabs", "calendar" or "clock")
