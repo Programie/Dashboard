@@ -43,12 +43,6 @@ class View(QtWidgets.QWidget, AbstractView):
         self.minute_hand_pen = self.create_hand_pen(hands.get("minute"), 2, "black")
         self.second_hand_pen = self.create_hand_pen(hands.get("second"), 1, "red")
 
-        layout = QtWidgets.QVBoxLayout()
-        self.setLayout(layout)
-
-        self.painting_widget = QtWidgets.QWidget()
-        layout.addWidget(self.painting_widget)
-
         timer = Timer(self, 500, self)
         timer.timeout.connect(self.update)
 
