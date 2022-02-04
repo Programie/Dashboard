@@ -2,6 +2,7 @@ import datetime
 import subprocess
 from collections import OrderedDict
 
+import pyperclip
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
 
@@ -65,22 +66,44 @@ class View(QtWidgets.QTreeWidget, AbstractView):
             self.setColumnHidden(0, "title" not in columns)
             self.setColumnHidden(1, "date" not in columns)
 
-        open_action = QtWidgets.QAction(self)
-        open_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Return))
+        open_action = QtWidgets.QAction(QtGui.QIcon.fromTheme("document-open"), "Open", self)
+        open_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key.Key_Return))
         open_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         open_action.triggered.connect(self.open_selected_items)
         self.addAction(open_action)
 
-        mark_as_read_action = QtWidgets.QAction(self)
-        mark_as_read_action.setShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Delete))
+        copy_action = QtWidgets.QAction(QtGui.QIcon.fromTheme("edit-copy"), "Copy URL", self)
+        copy_action.setShortcut(QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Copy))
+        copy_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        copy_action.triggered.connect(self.copy_selected_items)
+        self.addAction(copy_action)
+
+        mark_as_read_action = QtWidgets.QAction(QtGui.QIcon.fromTheme("mail-mark-read"), "Mark as read", self)
+        mark_as_read_action.setShortcut(QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Delete))
+        mark_as_read_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         mark_as_read_action.triggered.connect(self.mark_selected_item_as_read)
         self.addAction(mark_as_read_action)
+
+        self.context_menu = QtWidgets.QMenu()
+        self.context_menu.addAction(open_action)
+        self.context_menu.addAction(copy_action)
+        self.context_menu.addSeparator()
+        self.context_menu.addAction(mark_as_read_action)
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
 
         self.updater_thread = Updater(self.base_url, self.auth)
         self.updater_thread.ready.connect(self.update_data)
 
         timer = Timer(self, 10 * 60 * 1000, self)
         timer.timeout.connect(self.updater_thread.start)
+
+    def show_context_menu(self, position):
+        if not self.itemAt(position):
+            return
+
+        self.context_menu.exec(self.mapToGlobal(position))
 
     def update_data(self, items):
         self.clear()
@@ -151,6 +174,16 @@ class View(QtWidgets.QTreeWidget, AbstractView):
             self.mark_item_as_read(item)
 
         self.updater_thread.start()
+
+    def copy_selected_items(self):
+        items = self.get_selected_items()
+
+        if not items:
+            return
+
+        lines = [item["url"] for item in items]
+
+        pyperclip.copy("\n".join(lines))
 
     def mark_selected_item_as_read(self):
         items = self.get_selected_items()
