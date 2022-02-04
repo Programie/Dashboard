@@ -69,6 +69,18 @@ class View(QtWidgets.QWidget, AbstractView):
         painter.scale(side / 200.0, side / 200.0)
         painter.setFont(self.font)
 
+        painter.setPen(self.hours_color)
+        for hour in range(12):
+            painter.drawLine(88, 0, 96, 0)
+            painter.rotate(30.0)
+
+        painter.setPen(self.minutes_color)
+        for minute in range(60):
+            if (minute % 5) != 0:
+                painter.drawLine(92, 0, 96, 0)
+
+            painter.rotate(6.0)
+
         painter.setPen(self.numbers_color)
         painter.save()
         for number, point in enumerate(self.hour_numbers):
@@ -81,23 +93,11 @@ class View(QtWidgets.QWidget, AbstractView):
         painter.drawLine(0, 0, 0, -40)
         painter.restore()
 
-        painter.setPen(self.hours_color)
-        for hour in range(12):
-            painter.drawLine(88, 0, 96, 0)
-            painter.rotate(30.0)
-
         painter.setPen(self.minute_hand_pen)
         painter.save()
         painter.rotate(6.0 * (time.minute() + time.second() / 60.0))
         painter.drawLine(0, 0, 0, -60)
         painter.restore()
-
-        painter.setPen(self.minutes_color)
-        for minute in range(60):
-            if (minute % 5) != 0:
-                painter.drawLine(92, 0, 96, 0)
-
-            painter.rotate(6.0)
 
         painter.setPen(self.second_hand_pen)
         painter.save()
