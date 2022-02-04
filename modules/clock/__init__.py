@@ -67,7 +67,7 @@ class View(QtWidgets.QWidget, AbstractView):
 
         painter.save()
         painter.rotate(30.0 * (time.hour() + time.minute() / 60.0))
-        painter.drawLine(QtCore.QLine(0, 0, 0, -40))
+        painter.drawLine(0, 0, 0, -40)
         painter.restore()
 
         painter.setPen(QtCore.Qt.white)
@@ -80,7 +80,7 @@ class View(QtWidgets.QWidget, AbstractView):
 
         painter.save()
         painter.rotate(6.0 * (time.minute() + time.second() / 60.0))
-        painter.drawLine(QtCore.QLine(0, 0, 0, -60))
+        painter.drawLine(0, 0, 0, -60)
         painter.restore()
 
         painter.setPen(QtCore.Qt.gray)
@@ -95,5 +95,5 @@ class View(QtWidgets.QWidget, AbstractView):
 
         painter.save()
         painter.rotate(6.0 * time.second())
-        painter.drawLine(QtCore.QLine(0, 0, 0, -80))
+        painter.drawLine(0, 0, 0, -80)
         painter.restore()
