@@ -4,16 +4,6 @@ from lib.common import Timer, AbstractView
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    pen = QtGui.QPen()
-    pen.setWidth(2)
-    pen.setBrush(QtCore.Qt.white)
-    pen.setCapStyle(QtCore.Qt.RoundCap)
-
-    second_pen = QtGui.QPen()
-    second_pen.setWidth(1)
-    second_pen.setBrush(QtCore.Qt.white)
-    second_pen.setCapStyle(QtCore.Qt.RoundCap)
-
     hour_numbers = [
         QtCore.QPoint(35, -57),  # 1
         QtCore.QPoint(61, -31),  # 2
@@ -29,8 +19,29 @@ class View(QtWidgets.QWidget, AbstractView):
         QtCore.QPoint(-12, -68),  # 12
     ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, font=None, colors=None, hands=None):
+        super().__init__()
+
+        if font is None:
+            font = {}
+
+        if colors is None:
+            colors = {}
+
+        if hands is None:
+            hands = {}
+
+        self.font = QtGui.QFont()
+        self.font.setFamily(font.get("family", "FreeSans"))
+        self.font.setPointSize(font.get("size", 15))
+
+        self.numbers_color = QtGui.QColor(colors.get("numbers", "black"))
+        self.hours_color = QtGui.QColor(colors.get("hours", "black"))
+        self.minutes_color = QtGui.QColor(colors.get("minutes", "black"))
+
+        self.hour_hand_pen = self.create_hand_pen(hands.get("hour"), 2, "black")
+        self.minute_hand_pen = self.create_hand_pen(hands.get("minute"), 2, "black")
+        self.second_hand_pen = self.create_hand_pen(hands.get("second"), 1, "red")
 
         layout = QtWidgets.QVBoxLayout()
         self.setLayout(layout)
@@ -41,6 +52,18 @@ class View(QtWidgets.QWidget, AbstractView):
         timer = Timer(self, 500, self)
         timer.timeout.connect(self.update)
 
+    @staticmethod
+    def create_hand_pen(config, width, color):
+        if not config:
+            config = {}
+
+        pen = QtGui.QPen()
+        pen.setWidth(config.get("width", width))
+        pen.setBrush(QtGui.QColor(config.get("color", color)))
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+
+        return pen
+
     def paintEvent(self, event):
         side = min(self.width(), self.height())
 
@@ -50,50 +73,40 @@ class View(QtWidgets.QWidget, AbstractView):
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         painter.translate(self.width() / 2, self.height() / 2)
         painter.scale(side / 200.0, side / 200.0)
+        painter.setFont(self.font)
 
-        painter.setPen(QtCore.Qt.gray)
-
-        font = QtGui.QFont()
-        font.setFamily("FreeSans")
-        font.setPointSize(15)
-        painter.setFont(font)
-
+        painter.setPen(self.numbers_color)
         painter.save()
         for number, point in enumerate(self.hour_numbers):
             painter.drawText(point, str(number + 1))
         painter.restore()
 
-        painter.setPen(self.pen)
-
+        painter.setPen(self.hour_hand_pen)
         painter.save()
         painter.rotate(30.0 * (time.hour() + time.minute() / 60.0))
         painter.drawLine(0, 0, 0, -40)
         painter.restore()
 
-        painter.setPen(QtCore.Qt.white)
-
+        painter.setPen(self.hours_color)
         for hour in range(12):
             painter.drawLine(88, 0, 96, 0)
             painter.rotate(30.0)
 
-        painter.setPen(self.pen)
-
+        painter.setPen(self.minute_hand_pen)
         painter.save()
         painter.rotate(6.0 * (time.minute() + time.second() / 60.0))
         painter.drawLine(0, 0, 0, -60)
         painter.restore()
 
-        painter.setPen(QtCore.Qt.gray)
-
+        painter.setPen(self.minutes_color)
         for minute in range(60):
             if (minute % 5) != 0:
                 painter.drawLine(92, 0, 96, 0)
 
             painter.rotate(6.0)
 
-        painter.setPen(self.second_pen)
-
+        painter.setPen(self.second_hand_pen)
         painter.save()
         painter.rotate(6.0 * time.second())
-        painter.drawLine(0, 0, 0, -80)
+        painter.drawLine(0, 0, 0, -85)
         painter.restore()
