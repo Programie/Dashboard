@@ -187,7 +187,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         if widget_size:
             widget.resize(widget_size)
-        elif fixed_widget_size:
+
+        if fixed_widget_size:
             widget.setFixedSize(fixed_widget_size)
 
         if widget_type not in self.widget_instances:
