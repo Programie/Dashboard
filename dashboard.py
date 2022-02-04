@@ -16,7 +16,7 @@ import yaml
 from PyQt5 import QtWidgets, QtGui, QtCore, QtDBus
 from PyQt5.QtWidgets import QTabWidget
 
-from lib.common import AbstractView, set_dashboard_instance, get_dashboard_instance
+from lib.common import AbstractView, set_dashboard_instance, get_dashboard_instance, AbstractPlugin
 
 modules = {}
 
@@ -49,6 +49,7 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         self.session_dbus = session_dbus
         self.tabs: Dict[str, Tuple[QTabWidget, int]] = {}
         self.widget_instances: Dict[str, List[AbstractView]] = {}
+        self.plugin_instances: Dict[str, List[AbstractPlugin]] = {}
         self.error_message = QtWidgets.QErrorMessage(self)
 
         self.splash_screen = QtWidgets.QSplashScreen(QtGui.QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), "images", "splash.png")))
@@ -124,6 +125,10 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
                 self.overlay_widget.size_changed.connect(self.move_overlay_widget)
                 self.move_overlay_widget()
 
+            if "plugins" in config:
+                for plugin in config["plugins"]:
+                    self.init_plugin(plugin)
+
         self.size_changed.connect(self.move_overlay_widget)
 
         self.register_screensaver_events()
@@ -184,11 +189,40 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         return widget
 
+    def init_plugin(self, config):
+        plugin_type = config["type"]
+
+        self.update_splash_screen("Loading plugin '{}'".format(plugin_type))
+
+        module = modules[plugin_type]
+
+        options = dict(config)
+        del options["type"]
+
+        parameters = inspect.signature(module.Plugin.__init__).parameters
+        if "dashboard_instance" in parameters:
+            options["dashboard_instance"] = self
+
+        plugin = module.Plugin(**options)
+
+        if plugin_type not in self.plugin_instances:
+            self.plugin_instances[plugin_type] = []
+
+        self.plugin_instances[plugin_type].append(plugin)
+
     def tab_by_id(self, tab_id):
         return self.tabs.get(tab_id, (None, 0))
 
     def get_widget_instance(self, name, index=0):
         instances = self.widget_instances.get(name)
+
+        if instances is None or len(instances) - 1 < index:
+            return None
+
+        return instances[index]
+
+    def get_plugin_instance(self, name, index=0):
+        instances = self.plugin_instances.get(name)
 
         if instances is None or len(instances) - 1 < index:
             return None
@@ -229,15 +263,15 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
             self.window_state_changed.emit(self.windowState())
 
 
-def import_modules(config):
-    widget_type = config["type"]
+def import_modules(config, children_property=None):
+    module_type = config["type"]
 
-    if "widgets" in config:
-        for child_widget in config["widgets"]:
-            import_modules(child_widget)
+    if children_property is not None and children_property in config:
+        for child_module in config[children_property]:
+            import_modules(child_module, children_property)
 
-    if widget_type not in modules:
-        modules[widget_type] = importlib.import_module("modules.{}".format(widget_type))
+    if module_type not in modules:
+        modules[module_type] = importlib.import_module("modules.{}".format(module_type))
 
 
 def exception_hook(exception_type, exception_value, exception_traceback):
@@ -271,10 +305,14 @@ def main():
         else:
             pid_file = None
 
-        import_modules(config["central_widget"])
+        import_modules(config["central_widget"], "widgets")
 
         if "overlay_widget" in config:
-            import_modules(config["overlay_widget"])
+            import_modules(config["overlay_widget"], "widgets")
+
+        if "plugins" in config:
+            for plugin in config["plugins"]:
+                import_modules(plugin)
 
     app = QtWidgets.QApplication(sys.argv)
     app.setApplicationName("Dashboard")
@@ -308,6 +346,10 @@ def main():
         dashboard.show()
 
         exit_code = app.exec()
+
+        for plugin_type, plugin_instances in dashboard.plugin_instances.items():
+            for plugin_instance in plugin_instances:
+                plugin_instance.on_quit.emit()
     finally:
         if pid_file is not None and os.path.exists(pid_file):
             os.remove(pid_file)
