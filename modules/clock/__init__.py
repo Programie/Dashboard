@@ -19,7 +19,7 @@ class View(QtWidgets.QWidget, AbstractView):
         QtCore.QPoint(-12, -68),  # 12
     ]
 
-    def __init__(self, font=None, colors=None, hands=None):
+    def __init__(self, font=None, colors=None, center_circle=None, center_circle_second=None, hands=None):
         super().__init__()
 
         if font is None:
@@ -27,6 +27,12 @@ class View(QtWidgets.QWidget, AbstractView):
 
         if colors is None:
             colors = {}
+
+        if center_circle is None:
+            center_circle = {}
+
+        if center_circle_second is None:
+            center_circle_second = {}
 
         if hands is None:
             hands = {}
@@ -38,6 +44,12 @@ class View(QtWidgets.QWidget, AbstractView):
         self.numbers_color = QtGui.QColor(colors.get("numbers", "black"))
         self.hours_color = QtGui.QColor(colors.get("hours", "black"))
         self.minutes_color = QtGui.QColor(colors.get("minutes", "black"))
+
+        self.center_circle_size = center_circle.get("size", 10)
+        self.center_circle_color = QtGui.QColor(center_circle.get("color", 10))
+
+        self.center_circle_second_size = center_circle_second.get("size", 10)
+        self.center_circle_second_color = QtGui.QColor(center_circle_second.get("color", 10))
 
         self.hour_hand_pen = self.create_hand_pen(hands.get("hour"), 2, "black")
         self.minute_hand_pen = self.create_hand_pen(hands.get("minute"), 2, "black")
@@ -99,8 +111,20 @@ class View(QtWidgets.QWidget, AbstractView):
         painter.drawLine(0, 0, 0, -60)
         painter.restore()
 
+        painter.setBrush(self.center_circle_color)
+        painter.setPen(self.center_circle_color)
+        painter.save()
+        painter.drawEllipse(QtCore.QRectF(-(self.center_circle_size / 2), -(self.center_circle_size / 2), self.center_circle_size, self.center_circle_size))
+        painter.restore()
+
         painter.setPen(self.second_hand_pen)
         painter.save()
         painter.rotate(6.0 * time.second())
         painter.drawLine(0, 0, 0, -85)
+        painter.restore()
+
+        painter.setBrush(self.center_circle_second_color)
+        painter.setPen(self.center_circle_second_color)
+        painter.save()
+        painter.drawEllipse(QtCore.QRectF(-(self.center_circle_second_size / 2), -(self.center_circle_second_size / 2), self.center_circle_second_size, self.center_circle_second_size))
         painter.restore()
