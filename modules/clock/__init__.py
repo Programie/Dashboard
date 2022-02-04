@@ -19,14 +19,14 @@ class View(QtWidgets.QWidget, AbstractView):
         QtCore.QPoint(-12, -68),  # 12
     ]
 
-    def __init__(self, font=None, colors=None, center_circle=None, center_circle_second=None, hands=None):
+    def __init__(self, font=None, numbers_color="black", ticks=None, center_circle=None, center_circle_second=None, hands=None):
         super().__init__()
 
         if font is None:
             font = {}
 
-        if colors is None:
-            colors = {}
+        if ticks is None:
+            ticks = {}
 
         if center_circle is None:
             center_circle = {}
@@ -41,9 +41,10 @@ class View(QtWidgets.QWidget, AbstractView):
         self.font.setFamily(font.get("family", "FreeSans"))
         self.font.setPointSize(font.get("size", 15))
 
-        self.numbers_color = QtGui.QColor(colors.get("numbers", "black"))
-        self.hours_color = QtGui.QColor(colors.get("hours", "black"))
-        self.minutes_color = QtGui.QColor(colors.get("minutes", "black"))
+        self.numbers_color = QtGui.QColor(numbers_color)
+
+        self.hours_pen = self.create_pen(ticks.get("hours"), 1, "black")
+        self.minutes_pen = self.create_pen(ticks.get("minutes"), 1, "black")
 
         self.center_circle_size = center_circle.get("size", 10)
         self.center_circle_color = QtGui.QColor(center_circle.get("color", 10))
@@ -51,22 +52,32 @@ class View(QtWidgets.QWidget, AbstractView):
         self.center_circle_second_size = center_circle_second.get("size", 10)
         self.center_circle_second_color = QtGui.QColor(center_circle_second.get("color", 10))
 
-        self.hour_hand_pen = self.create_hand_pen(hands.get("hour"), 2, "black")
-        self.minute_hand_pen = self.create_hand_pen(hands.get("minute"), 2, "black")
-        self.second_hand_pen = self.create_hand_pen(hands.get("second"), 1, "red")
+        self.hour_hand_pen = self.create_pen(hands.get("hour"), 2, "black", "round")
+        self.minute_hand_pen = self.create_pen(hands.get("minute"), 2, "black", "round")
+        self.second_hand_pen = self.create_pen(hands.get("second"), 1, "red", "round")
 
         timer = Timer(self, 500, self)
         timer.timeout.connect(self.update)
 
     @staticmethod
-    def create_hand_pen(config, width, color):
+    def create_pen(config, width, color, cap_style="flat"):
         if not config:
             config = {}
 
         pen = QtGui.QPen()
         pen.setWidth(config.get("width", width))
         pen.setBrush(QtGui.QColor(config.get("color", color)))
-        pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
+
+        cap_style = config.get("cap_style", cap_style)
+
+        if cap_style == "square":
+            cap_style = QtCore.Qt.PenCapStyle.SquareCap
+        elif cap_style == "round":
+            cap_style = QtCore.Qt.PenCapStyle.RoundCap
+        else:
+            cap_style = QtCore.Qt.PenCapStyle.FlatCap
+
+        pen.setCapStyle(cap_style)
 
         return pen
 
@@ -81,12 +92,12 @@ class View(QtWidgets.QWidget, AbstractView):
         painter.scale(side / 200.0, side / 200.0)
         painter.setFont(self.font)
 
-        painter.setPen(self.hours_color)
+        painter.setPen(self.hours_pen)
         for hour in range(12):
             painter.drawLine(88, 0, 96, 0)
             painter.rotate(30.0)
 
-        painter.setPen(self.minutes_color)
+        painter.setPen(self.minutes_pen)
         for minute in range(60):
             if (minute % 5) != 0:
                 painter.drawLine(92, 0, 96, 0)
