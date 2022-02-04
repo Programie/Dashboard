@@ -173,6 +173,12 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         else:
             widget_size = None
 
+        if "fixed_size" in options:
+            fixed_widget_size = QtCore.QSize(options["fixed_size"][0], options["fixed_size"][1])
+            del options["fixed_size"]
+        else:
+            fixed_widget_size = None
+
         parameters = inspect.signature(module.View.__init__).parameters
         if "dashboard_instance" in parameters:
             options["dashboard_instance"] = self
@@ -181,6 +187,8 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
         if widget_size:
             widget.resize(widget_size)
+        elif fixed_widget_size:
+            widget.setFixedSize(fixed_widget_size)
 
         if widget_type not in self.widget_instances:
             self.widget_instances[widget_type] = []
