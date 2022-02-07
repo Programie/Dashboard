@@ -55,12 +55,6 @@ central_widget:
           username: your-username
           password: your-password
           default_calendar: My Calendar
-          default_todo_list: My Tasks
-          sort_todos:
-            - due
-            - priority
-            - dtstamp
-          todos_reversed: true
     - type: pushover
       tab_title: Pushover
       tab_id: pushover
