@@ -15,4 +15,4 @@ See the [modules](modules) folder as well as the individual README files for eac
 
 ## Configuration
 
-See [sample-config.yml](sample-config.yml) for a basic commented configuration file.
+See [example-config.yml](example-config.yml) for a basic commented configuration file.
