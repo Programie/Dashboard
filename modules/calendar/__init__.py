@@ -252,7 +252,7 @@ class CalendarEventList(QtWidgets.QListWidget):
     def update_list(self, events, filter_string):
         self.clear()
 
-        for date_string, date_events in events.items():
+        for date_events in events.values():
             header_created = False
 
             for date, event in date_events:
@@ -260,16 +260,17 @@ class CalendarEventList(QtWidgets.QListWidget):
                     continue
 
                 if not header_created:
-                    self.create_header_item(date_string)
+                    self.create_header_item(date)
                     header_created = True
 
                 list_item = QtWidgets.QListWidgetItem(event.calendar.get_icon(), event.get_summary_with_time())
-                list_item.setData(QtCore.Qt.ItemDataRole.UserRole, (date, event))
+                list_item.setData(QtCore.Qt.ItemDataRole.UserRole, ("event", date, event))
                 self.addItem(list_item)
 
-    def create_header_item(self, date_string):
-        item = QtWidgets.QListWidgetItem(date_string)
+    def create_header_item(self, date: datetime.datetime):
+        item = QtWidgets.QListWidgetItem(date.strftime("%Y-%m-%d"))
         item.setFlags(QtCore.Qt.ItemFlag.NoItemFlags)
+        item.setData(QtCore.Qt.ItemDataRole.UserRole, ("header", date))
 
         font = item.font()
         font.setPointSize(font.pointSize() + 5)
@@ -278,9 +279,25 @@ class CalendarEventList(QtWidgets.QListWidget):
         self.addItem(item)
 
     def scroll_to_date(self, date: QtCore.QDate):
-        items = self.findItems(date.toString("yyyy-MM-dd"), QtCore.Qt.MatchExactly)
-        if items:
-            self.scrollToItem(items[0], QtWidgets.QListWidget.PositionAtTop)
+        date = datetime.datetime(date.year(), date.month(), date.day())
+
+        scroll_to_item = None
+
+        for index in range(self.count() - 1):
+            item = self.item(index)
+            item_data = item.data(QtCore.Qt.ItemDataRole.UserRole)
+
+            if item_data[0] != "header":
+                continue
+
+            item_date = item_data[1]
+            if item_date > date:
+                break
+
+            scroll_to_item = item
+
+        if scroll_to_item is not None:
+            self.scrollToItem(scroll_to_item, QtWidgets.QListWidget.PositionAtTop)
 
 
 class SearchBar(QtWidgets.QLineEdit):
@@ -491,7 +508,10 @@ class View(QtWidgets.QWidget, AbstractView):
         if item_data is None:
             return
 
-        date, event = item_data
+        if item_data[0] != "event":
+            return
+
+        _, date, event = item_data
 
         block_signals = self.calendar_widget.blockSignals(True)
         self.calendar_widget.setSelectedDate(QtCore.QDate(date))
