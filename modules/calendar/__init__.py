@@ -444,6 +444,10 @@ class View(QtWidgets.QWidget, AbstractView):
         self.add_event_action.triggered.connect(lambda: self.show_add_event_dialog(None))
         self.calendar_widget.addAction(self.add_event_action)
 
+        self.jump_to_today_action = QtWidgets.QAction("Jump to today", self)
+        self.jump_to_today_action.triggered.connect(self.jump_to_today)
+        self.calendar_widget.addAction(self.jump_to_today_action)
+
         self.event_list_widget = CalendarEventList()
         self.event_list_widget.currentItemChanged.connect(self.event_list_item_changed)
         layout.addWidget(self.event_list_widget, 1)
@@ -466,6 +470,9 @@ class View(QtWidgets.QWidget, AbstractView):
 
         if position is not None:
             dialog.move(position)
+
+    def jump_to_today(self):
+        self.calendar_widget.setSelectedDate(QtCore.QDate.currentDate())
 
     def update_events(self, events_per_calendar: Dict[str, List[caldav.Event]]):
         today = datetime.date.today()
