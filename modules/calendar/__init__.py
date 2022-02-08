@@ -313,7 +313,9 @@ class CalendarEventList(QtWidgets.QListWidget):
 
             scroll_to_item = item
 
-        if scroll_to_item is not None:
+        if scroll_to_item is None:
+            self.scrollToTop()
+        else:
             self.scrollToItem(scroll_to_item, QtWidgets.QListWidget.PositionAtTop)
 
 
