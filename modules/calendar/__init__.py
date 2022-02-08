@@ -190,66 +190,66 @@ class Event:
         self.past_days = past_days
 
     def get_dates(self):
-        today_date = datetime.date.today()
-        today = datetime.datetime(today_date.year, today_date.month, today_date.day)
-        start_date = today - datetime.timedelta(days=self.past_days)
-        end_date = today + datetime.timedelta(days=self.upcoming_days)
-
         rrule = self.vevent.getChildValue("rrule")
         if rrule:
-            start_datetime = self.vevent.getChildValue("dtstart")
-            end_datetime = self.vevent.getChildValue("dtend")
-            if isinstance(start_datetime, datetime.datetime):
-                start_datetime = start_datetime.astimezone().replace(tzinfo=None)
-            if isinstance(end_datetime, datetime.datetime):
-                end_datetime = end_datetime.astimezone().replace(tzinfo=None)
+            return self.get_from_rrule(rrule)
+        else:
+            return self.get_in_range(self.vevent.getChildValue("dtstart"), self.vevent.getChildValue("dtend"))
 
-            exdate_list = self.vevent.getChildValue("exdate")
+    def get_from_rrule(self, rrule):
+        today_date = datetime.date.today()
+        today = datetime.datetime(today_date.year, today_date.month, today_date.day)
+        range_start = today - datetime.timedelta(days=self.past_days)
+        range_end = today + datetime.timedelta(days=self.upcoming_days)
 
-            if not exdate_list:
-                exdate_list = []
+        start_datetime = self.vevent.getChildValue("dtstart")
+        end_datetime = self.vevent.getChildValue("dtend")
+        if isinstance(start_datetime, datetime.datetime):
+            start_datetime = start_datetime.astimezone().replace(tzinfo=None)
+        if isinstance(end_datetime, datetime.datetime):
+            end_datetime = end_datetime.astimezone().replace(tzinfo=None)
 
-            for index, exdate in enumerate(exdate_list):
-                if isinstance(exdate, datetime.date):
-                    exdate = datetime.datetime(exdate.year, exdate.month, exdate.day)
+        exdate_list = self.vevent.getChildValue("exdate")
 
-                exdate_list[index] = exdate.astimezone().replace(tzinfo=None)
+        if not exdate_list:
+            exdate_list = []
 
-            rules = dateutil.rrule.rruleset()
-            rules.rrule(dateutil.rrule.rrulestr(rrule, dtstart=start_datetime))
+        for index, exdate in enumerate(exdate_list):
+            if not isinstance(exdate, datetime.datetime):
+                exdate = datetime.datetime(exdate.year, exdate.month, exdate.day)
 
-            for exdate in exdate_list:
-                rules.exdate(exdate)
+            exdate_list[index] = exdate.astimezone().replace(tzinfo=None)
 
-            start_end_diff = end_datetime - start_datetime
+        rules = dateutil.rrule.rruleset()
+        rules.rrule(dateutil.rrule.rrulestr(rrule, dtstart=start_datetime))
 
-            all_dates = []
-            dates = rules.between(start_date, end_date, True)
-            for date in dates:
-                if isinstance(start_datetime, datetime.datetime):
-                    date = date.astimezone().replace(tzinfo=None)
-                    all_day_event = False
-                else:
-                    date = date.date()
-                    all_day_event = True
+        for exdate in exdate_list:
+            rules.exdate(exdate)
 
-                all_dates.extend(pandas.date_range(start=date, end=date + start_end_diff, closed="left" if all_day_event else None).tolist())
+        start_end_diff = end_datetime - start_datetime
 
-            return all_dates
+        all_dates = []
+        dates = rules.between(range_start, range_end, True)
+        for date in dates:
+            # dateutil.rrule.rruleset.between() always returns a datetime object?
+            if not isinstance(start_datetime, datetime.datetime):
+                date = date.date()
 
-        datetime_start = self.vevent.getChildValue("dtstart")
-        datetime_end = self.vevent.getChildValue("dtend")
+            all_dates.extend(self.get_in_range(date, date + start_end_diff))
 
-        if isinstance(datetime_start, datetime.datetime):
-            datetime_start = datetime_start.astimezone().replace(tzinfo=None)
+        return all_dates
+
+    def get_in_range(self, start, end):
+        if isinstance(start, datetime.datetime):
+            start = start.astimezone().replace(tzinfo=None)
             all_day_event = False
         else:
             all_day_event = True
 
-        if isinstance(datetime_end, datetime.datetime):
-            datetime_end = datetime_end.astimezone().replace(tzinfo=None)
+        if isinstance(end, datetime.datetime):
+            end = end.astimezone().replace(tzinfo=None)
 
-        return pandas.date_range(start=datetime_start, end=datetime_end, closed="left" if all_day_event else None).tolist()
+        return pandas.date_range(start=start, end=end, closed="left" if all_day_event else None).tolist()
 
     def get_summary(self):
         return self.vevent.getChildValue("summary")
