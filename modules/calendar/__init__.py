@@ -307,8 +307,8 @@ class CalendarEventList(QtWidgets.QListWidget):
             if item_data[0] != "header":
                 continue
 
-            item_date = item_data[1]
-            if item_date > date:
+            item_date: datetime.datetime = item_data[1]
+            if datetime.datetime(item_date.year, item_date.month, item_date.day) > date:
                 break
 
             scroll_to_item = item
