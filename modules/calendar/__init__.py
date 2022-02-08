@@ -198,8 +198,11 @@ class Event:
         rrule = self.vevent.getChildValue("rrule")
         if rrule:
             start_datetime = self.vevent.getChildValue("dtstart")
+            end_datetime = self.vevent.getChildValue("dtend")
             if isinstance(start_datetime, datetime.datetime):
                 start_datetime = start_datetime.astimezone().replace(tzinfo=None)
+            if isinstance(end_datetime, datetime.datetime):
+                end_datetime = end_datetime.astimezone().replace(tzinfo=None)
 
             exdate_list = self.vevent.getChildValue("exdate")
 
@@ -218,19 +221,33 @@ class Event:
             for exdate in exdate_list:
                 rules.exdate(exdate)
 
-            return rules.between(start_date, end_date, True)
+            start_end_diff = end_datetime - start_datetime
+
+            all_dates = []
+            dates = rules.between(start_date, end_date, True)
+            for date in dates:
+                if isinstance(start_datetime, datetime.datetime):
+                    date = date.astimezone().replace(tzinfo=None)
+                    all_day_event = False
+                else:
+                    date = date.date()
+                    all_day_event = True
+
+                all_dates.extend(pandas.date_range(start=date, end=date + start_end_diff, closed="left" if all_day_event else None).tolist())
+
+            return all_dates
 
         datetime_start = self.vevent.getChildValue("dtstart")
         datetime_end = self.vevent.getChildValue("dtend")
 
         if isinstance(datetime_start, datetime.datetime):
-            datetime_start = datetime_start.astimezone()
+            datetime_start = datetime_start.astimezone().replace(tzinfo=None)
             all_day_event = False
         else:
             all_day_event = True
 
         if isinstance(datetime_end, datetime.datetime):
-            datetime_end = datetime_end.astimezone()
+            datetime_end = datetime_end.astimezone().replace(tzinfo=None)
 
         return pandas.date_range(start=datetime_start, end=datetime_end, closed="left" if all_day_event else None).tolist()
 
