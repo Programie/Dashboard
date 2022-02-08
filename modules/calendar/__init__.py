@@ -435,7 +435,6 @@ class View(QtWidgets.QWidget, AbstractView):
         self.setLayout(layout)
 
         self.calendar_widget = QtWidgets.QCalendarWidget()
-        self.calendar_widget.setFirstDayOfWeek(QtCore.Qt.Monday)
         self.calendar_widget.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.calendar_widget.selectionChanged.connect(self.scroll_to_selected_date)
         layout.addWidget(self.calendar_widget, 0)
