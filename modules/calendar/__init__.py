@@ -10,6 +10,7 @@ import caldav
 import dbus.service
 import dbus.mainloop.glib
 import pandas
+import pytz
 from PyQt5 import QtCore, QtWidgets, QtGui
 from caldav.elements import ical
 from vobject import icalendar
@@ -221,7 +222,7 @@ class Event:
             exdate_list[index] = exdate.astimezone().replace(tzinfo=None)
 
         rules = dateutil.rrule.rruleset()
-        rules.rrule(dateutil.rrule.rrulestr(rrule, dtstart=start_datetime))
+        rules.rrule(dateutil.rrule.rrulestr(rrule, dtstart=start_datetime, ignoretz=True))
 
         for exdate in exdate_list:
             rules.exdate(exdate)
