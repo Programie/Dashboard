@@ -127,7 +127,7 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         for feed, items in grouped_items.items():
             feed_item = QtWidgets.QTreeWidgetItem(self)
 
-            feed_item.setText(0, feed)
+            feed_item.setText(0, "{} ({})".format(feed, len(items)))
             feed_item.setExpanded(True)
 
             for entry in items:
