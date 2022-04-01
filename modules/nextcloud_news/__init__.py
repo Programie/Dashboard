@@ -12,13 +12,17 @@ from lib.common import Timer, AbstractView
 class Updater(QtCore.QThread):
     ready = QtCore.pyqtSignal(list)
 
-    def __init__(self, base_url, auth):
+    def __init__(self, base_url, auth, tree_widget: QtWidgets.QTreeWidget):
         QtCore.QThread.__init__(self)
 
         self.base_url = base_url
         self.auth = auth
+        self.tree_widget = tree_widget
 
     def run(self):
+        if len(self.tree_widget.selectedIndexes()) > 1:
+            return
+
         request = requests.get("{}/feeds".format(self.base_url), auth=self.auth)
 
         feeds = {}
@@ -93,7 +97,7 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
-        self.updater_thread = Updater(self.base_url, self.auth)
+        self.updater_thread = Updater(self.base_url, self.auth, self)
         self.updater_thread.ready.connect(self.update_data)
 
         timer = Timer(self, 10 * 60 * 1000, self)
