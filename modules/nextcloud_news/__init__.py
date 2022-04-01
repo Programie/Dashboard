@@ -46,7 +46,7 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None):
+    def __init__(self, nextcloud_url, username, password, columns=None, update_interval=600):
         super().__init__()
 
         self.news = {}
@@ -100,7 +100,7 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         self.updater_thread = Updater(self.base_url, self.auth, self)
         self.updater_thread.ready.connect(self.update_data)
 
-        timer = Timer(self, 10 * 60 * 1000, self)
+        timer = Timer(self, update_interval * 1000, self)
         timer.timeout.connect(self.updater_thread.start)
 
     def show_context_menu(self, position):

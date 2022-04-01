@@ -8,3 +8,4 @@ Show news from the [Nextcloud New app](https://apps.nextcloud.com/apps/news).
 * `username` (string): The username for your Nextcloud instance
 * `password` (string): The password for your Nextcloud instance
 * `columns` (list): A list of columns to show (default: all, which is equal to `[feed, title, date]`)
+* `update_interval` (int): Update interval in seconds (default: `600`)
