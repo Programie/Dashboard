@@ -12,15 +12,15 @@ from lib.common import Timer, AbstractView
 class Updater(QtCore.QThread):
     ready = QtCore.pyqtSignal(list)
 
-    def __init__(self, base_url, auth, tree_widget: QtWidgets.QTreeWidget):
+    def __init__(self, base_url, auth, view: "View"):
         QtCore.QThread.__init__(self)
 
         self.base_url = base_url
         self.auth = auth
-        self.tree_widget = tree_widget
+        self.view = view
 
     def run(self):
-        if len(self.tree_widget.selectedIndexes()) > 1:
+        if len(self.view.get_selected_items()) > 1:
             return
 
         request = requests.get("{}/feeds".format(self.base_url), auth=self.auth)
