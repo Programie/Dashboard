@@ -222,6 +222,9 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
     def tab_by_id(self, tab_id):
         return self.tabs.get(tab_id, (None, 0))
 
+    def get_module(self, name):
+        return modules.get(name)
+
     def get_widget_instance(self, name, index=0):
         instances = self.widget_instances.get(name)
 
