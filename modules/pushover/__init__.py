@@ -1,6 +1,8 @@
 import datetime
 import json
 import os
+import threading
+import time
 
 import requests
 import websocket
@@ -9,25 +11,38 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from lib.common import AbstractView, ThreadedRequest, ThreadedDownloadAndCache, get_cache_path, RingBuffer, get_dashboard_instance
 
 
-class WebSocketThread(QtCore.QThread):
+class WebSocketHandler(QtCore.QObject):
     sync = QtCore.pyqtSignal()
 
     def __init__(self, parent, secret, device_id):
-        QtCore.QThread.__init__(self, parent)
+        super().__init__(parent)
 
         self.secret = secret
         self.device_id = device_id
+        self.client = None
 
+    def connect(self, is_reconnect=False):
         self.client = websocket.WebSocketApp("wss://client.pushover.net/push")
 
         self.client.on_open = lambda ws: self.on_open()
+        self.client.on_close = lambda ws: self.on_close()
         self.client.on_message = lambda ws, message: self.on_message(message)
 
-    def run(self):
+        thread = threading.Thread(target=lambda: self.thread_method(is_reconnect))
+        thread.daemon = True
+        thread.start()
+
+    def thread_method(self, is_reconnect):
+        if is_reconnect:
+            time.sleep(10)
+
         self.client.run_forever()
 
     def on_open(self):
         self.client.send("login:{}:{}\n".format(self.device_id, self.secret))
+
+    def on_close(self):
+        self.connect()
 
     def on_message(self, message):
         message = message.decode("utf-8")
@@ -142,9 +157,9 @@ class View(QtWidgets.QWidget, AbstractView):
 
         self.update_thread.ready.connect(self.fetch_new_messages)
 
-        websocket_thread = WebSocketThread(self, self.secret, self.device_id)
-        websocket_thread.sync.connect(self.update_thread.start)
-        websocket_thread.start()
+        websocket_handler = WebSocketHandler(self, self.secret, self.device_id)
+        websocket_handler.sync.connect(self.update_thread.start)
+        websocket_handler.connect()
 
     def on_visibility_changed(self, state: bool):
         if state:
