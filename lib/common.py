@@ -42,7 +42,11 @@ class AbstractView:
 
 
 class AbstractPlugin:
-    on_quit = QtCore.pyqtSignal()
+    def start_plugin(self):
+        pass
+
+    def stop_plugin(self):
+        pass
 
 
 class RingBuffer(deque):

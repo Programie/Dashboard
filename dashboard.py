@@ -113,12 +113,6 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
 
             self.setCentralWidget(self.create_widget(config["central_widget"]))
 
-            widget_instance: AbstractView
-            for widget_instances in self.widget_instances.values():
-                for widget_instance in widget_instances:
-                    if hasattr(widget_instance, "start_view"):
-                        widget_instance.start_view()
-
             if "overlay_widget" in config:
                 self.overlay_widget: QtWidgets.QWidget = self.create_widget(config["overlay_widget"])
                 self.overlay_widget.setParent(self)
@@ -128,6 +122,21 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
             if "plugins" in config:
                 for plugin in config["plugins"]:
                     self.init_plugin(plugin)
+
+            widget_instance: AbstractView
+            for widget_instances in self.widget_instances.values():
+                for widget_instance in widget_instances:
+                    if hasattr(widget_instance, "start_view"):
+                        widget_instance.start_view()
+
+            if self.overlay_widget and hasattr(self.overlay_widget, "start_view"):
+                self.overlay_widget.start_view()
+
+            plugin_instance: AbstractPlugin
+            for plugin_instances in self.plugin_instances.values():
+                for plugin_instance in plugin_instances:
+                    if hasattr(plugin_instance, "start_plugin"):
+                        plugin_instance.start_plugin()
 
         self.size_changed.connect(self.move_overlay_widget)
 
@@ -361,7 +370,7 @@ def main():
 
         for plugin_type, plugin_instances in dashboard.plugin_instances.items():
             for plugin_instance in plugin_instances:
-                plugin_instance.on_quit.emit()
+                plugin_instance.stop_plugin()
     finally:
         if pid_file is not None and os.path.exists(pid_file):
             os.remove(pid_file)
