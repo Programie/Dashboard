@@ -40,6 +40,11 @@ class TodoItem:
         else:
             self.due_datetime = None
 
+        if hasattr(self.vtodo, "priority"):
+            self.priority = int(self.vtodo.priority.value)
+        else:
+            self.priority = 0
+
     def add_child(self, item: "TodoItem"):
         self.children[item.get_id()] = item
         item.parent = self
@@ -58,6 +63,15 @@ class TodoItem:
             return False
 
         return self.due_datetime < datetime.datetime.now(tz=timezone("UTC"))
+
+    def is_high_priority(self):
+        return 1 <= self.priority <= 4
+
+    def is_medium_priority(self):
+        return self.priority == 5
+
+    def is_low_priority(self):
+        return 6 <= self.priority <= 9
 
     def get_summary(self):
         if hasattr(self.vtodo, "summary"):
@@ -322,12 +336,19 @@ class TodoListWidget(QtWidgets.QTreeWidget):
             list_item.setExpanded(True)
             list_item.setData(0, QtCore.Qt.UserRole, todo_item)
 
+            font = list_item.font(0)
+
             if todo_item.due_datetime is not None:
                 if todo_item.is_overdue():
                     self.overdue_todo_item = todo_item
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("red")))
                 else:
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("#FFD800")))
+
+            if todo_item.is_high_priority():
+                font.setBold(True)
+
+            list_item.setFont(0, font)
 
             self.add_from_list(list_item, [child_item for child_item in todo_item.children.values()])
 
