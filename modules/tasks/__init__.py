@@ -1,6 +1,7 @@
 import datetime
 import traceback
 import uuid
+from functools import cmp_to_key
 from typing import List, Dict
 
 import caldav
@@ -12,6 +13,13 @@ from pytz import timezone
 
 from lib.common import Timer, AbstractView, get_dashboard_instance
 from modules.calendar import escape_ical_string, Calendar
+
+
+class TodoListConfig:
+    def __init__(self, name: str, config: dict, sort: dict, default_priority_order_number: int):
+        self.name = name
+        self.sort = config.get("sort", sort)
+        self.default_priority_order_number = config.get("default_priority_order_number", default_priority_order_number)
 
 
 class TodoItem:
@@ -351,15 +359,21 @@ class DBusHandler(dbus.service.Object):
 
 
 class CalendarManager:
-    def __init__(self, url, username, password):
+    def __init__(self, url, username, password, calendars):
         client = caldav.DAVClient(url, username=username, password=password)
 
-        self.unfiltered_calendars = sorted(client.principal().calendars(), key=lambda calendar_item: calendar_item.name)
+        unfiltered_calendars = sorted(client.principal().calendars(), key=lambda calendar_item: calendar_item.name)
 
-        for calendar in self.unfiltered_calendars:
+        if calendars:
+            if isinstance(calendars, dict):
+                calendars = calendars.keys()
+
+            unfiltered_calendars = [calendar for calendar in unfiltered_calendars if calendar.name in calendars]
+
+        for calendar in unfiltered_calendars:
             calendar.__class__ = Calendar
 
-        self.todo_lists = self.filter_calendars_with_component(self.unfiltered_calendars, "VTODO")
+        self.todo_lists = self.filter_calendars_with_component(unfiltered_calendars, "VTODO")
 
     @staticmethod
     def filter_calendars_with_component(calendars: List[Calendar], component: str):
@@ -369,22 +383,68 @@ class CalendarManager:
 class Updater(QtCore.QThread):
     ready = QtCore.pyqtSignal(dict)
 
-    def __init__(self, calendars: List[caldav.Calendar], sort_todos: List[str], todos_reversed: bool):
+    def __init__(self, calendars: List[caldav.Calendar], todo_configs: Dict[str, TodoListConfig]):
         QtCore.QThread.__init__(self)
 
         self.calendars = calendars
-        self.sort_todos = sort_todos
-        self.todos_reversed = todos_reversed
+        self.todo_configs = todo_configs
+
+    def get_sort_value(self, todo_entry, sort_key):
+        vtodo = todo_entry.instance.vtodo
+
+        defaults = {
+            "due": "2050-01-01",
+            "dtstart": "1970-01-01",
+            "priority": "0",
+            "isnt_overdue": not (hasattr(vtodo, "due") and vtodo.due.value.strftime("%F%H%M%S") < datetime.datetime.now().strftime("%F%H%M%S")),
+            "hasnt_started": (hasattr(vtodo, "dtstart") and vtodo.dtstart.value.strftime("%F%H%M%S") > datetime.datetime.now().strftime("%F%H%M%S"))
+        }
+
+        value = getattr(vtodo, sort_key, None)
+        if value is None:
+            return defaults.get(sort_key, "0")
+
+        value = value.value
+        if hasattr(value, "strftime"):
+            return value.strftime("%F%H%M%S")
+
+        return value
+
+    def compare_todos(self, todo1, todo2, sort_key, asc=True, default_priority_order_number=0):
+        value1 = self.get_sort_value(todo1, sort_key).lower()
+        value2 = self.get_sort_value(todo2, sort_key).lower()
+
+        # Map priority value to default priority number in case it's zero (undefined)
+        if sort_key == "priority" and value1 == "0":
+            value1 = str(default_priority_order_number)
+        if sort_key == "priority" and value2 == "0":
+            value2 = str(default_priority_order_number)
+
+        if value1 > value2:
+            return 1 if asc else -1
+        elif value1 < value2:
+            return -1 if asc else 1
+        else:
+            return 0
+
+    def sort_function(self, todo1, todo2, todo_config: TodoListConfig):
+        for sort_key, sort_direction in todo_config.sort.items():
+            compare_value = self.compare_todos(todo1, todo2, sort_key, sort_direction.lower() == "asc", todo_config.default_priority_order_number)
+
+            if compare_value != 0:
+                return compare_value
+
+        return 0
 
     def run(self):
         try:
             todos = {}
 
             for calendar in self.calendars:
-                calendar_todos = calendar.todos(sort_keys=self.sort_todos)
+                todo_config = self.todo_configs[calendar.name]
+                calendar_todos = calendar.todos(sort_keys=[])
 
-                if self.todos_reversed:
-                    calendar_todos.reverse()
+                calendar_todos.sort(key=cmp_to_key(lambda todo1, todo2: self.sort_function(todo1, todo2, todo_config)))
 
                 todos[str(calendar.url)] = calendar_todos
 
@@ -394,8 +454,19 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=("due", "priority"), todos_reversed=False):
+    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0):
         super().__init__()
+
+        if isinstance(sort_todos, list):
+            sort_todos = {
+                key: ("desc" if todos_reversed else "asc")
+                for key in sort_todos
+            }
+        elif not isinstance(sort_todos, dict):
+            sort_todos = {
+                "due": "asc",
+                "priority": "asc"
+            }
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
 
@@ -405,9 +476,24 @@ class View(QtWidgets.QWidget, AbstractView):
 
         self.important_icon = QtGui.QIcon.fromTheme("error-app-symbolic")
 
-        self.calendar_manager = CalendarManager(url, username, password)
+        self.calendar_manager = CalendarManager(url, username, password, todo_lists)
 
-        self.updater = Updater(self.calendar_manager.unfiltered_calendars, sort_todos, todos_reversed)
+        if todo_lists is None:
+            todo_lists = [calendar.name for calendar in self.calendar_manager.todo_lists]
+
+        todo_configs = {}
+        todo_lists_list: list[str] = todo_lists
+
+        if isinstance(todo_lists, dict):
+            for name, config in todo_lists.items():
+                todo_configs[name] = TodoListConfig(name, config, sort_todos, default_priority_order_number)
+
+            todo_lists_list = list(todo_lists.keys())
+        elif isinstance(todo_lists, list):
+            for name in todo_lists:
+                todo_configs[name] = TodoListConfig(name, {}, sort_todos, default_priority_order_number)
+
+        self.updater = Updater(self.calendar_manager.todo_lists, todo_configs)
         self.updater.ready.connect(self.update_calendars)
 
         layout = QtWidgets.QVBoxLayout()
@@ -439,14 +525,11 @@ class View(QtWidgets.QWidget, AbstractView):
 
         default_page = None
 
-        if todo_lists is None:
-            todo_lists = [calendar.name for calendar in self.calendar_manager.todo_lists]
-
         todo_tabs = []
 
         calendar: Calendar
         for calendar in self.calendar_manager.todo_lists:
-            if calendar.name not in todo_lists:
+            if calendar.name not in todo_lists_list:
                 continue
 
             todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater)
@@ -457,7 +540,7 @@ class View(QtWidgets.QWidget, AbstractView):
             if default_todo_list is not None and calendar.name == default_todo_list:
                 default_page = todo_list_widget
 
-        todo_tabs = sorted(todo_tabs, key=lambda item: todo_lists.index(item[1]))
+        todo_tabs = sorted(todo_tabs, key=lambda item: todo_lists_list.index(item[1]))
 
         for todo_list_widget, calendar_name in todo_tabs:
             self.tab_widget.addTab(todo_list_widget, calendar_name)
