@@ -154,6 +154,10 @@ class CalendarEventDialog(QtWidgets.QDialog):
         if self.time_checkbox.isChecked():
             start_date = datetime.datetime(year, month, day, start_time.hour(), start_time.minute(), start_time.second())
             end_date = datetime.datetime(year, month, day, end_time.hour(), end_time.minute(), end_time.second())
+
+            if end_date < start_date:
+                end_date = end_date + datetime.timedelta(days=1)
+
             date_format = "%Y%m%dT%H%M%S"
         else:
             start_date = datetime.datetime(year, month, day)
