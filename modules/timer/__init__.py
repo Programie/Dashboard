@@ -126,6 +126,10 @@ class View(QtWidgets.QWidget, AbstractView):
 
                 if end_timestamp > QtCore.QDateTime.currentSecsSinceEpoch():
                     self.timer_time = QtCore.QTime(0, 0, 0).addSecs(end_timestamp - QtCore.QDateTime.currentSecsSinceEpoch())
+
+                    # Set time to current time
+                    self.time.start()
+
                     self.start_timer()
                 else:
                     os.unlink(self.remaining_time_file)
@@ -133,9 +137,12 @@ class View(QtWidgets.QWidget, AbstractView):
         self.update_time()
         self.display_widget.update_display()
 
+    def get_remaining_time(self):
+        return self.timer_time.msecsSinceStartOfDay() - self.time.elapsed()
+
     def update_time(self):
         if self.is_active:
-            remaining_time = self.timer_time.msecsSinceStartOfDay() - self.time.elapsed()
+            remaining_time = self.get_remaining_time()
 
             if remaining_time <= 0:
                 remaining_time = 0
@@ -172,6 +179,12 @@ class View(QtWidgets.QWidget, AbstractView):
                 QtWidgets.QMessageBox.critical(self, self.windowTitle(), "Invalid time!")
                 return
 
+            # Set time to current time
+            self.time.start()
+
+            if self.get_remaining_time() <= 0:
+                return
+
             self.start_timer()
 
             with open(self.remaining_time_file, "w") as timestamp_file:
@@ -188,7 +201,6 @@ class View(QtWidgets.QWidget, AbstractView):
         self.alarm_sound.play()
 
     def start_timer(self):
-        self.time.start()
         self.display_widget.editable = False
         self.is_active = True
 
