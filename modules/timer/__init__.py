@@ -1,6 +1,7 @@
 import os
 import re
 
+import dbus
 from PyQt5 import QtWidgets, QtCore, QtMultimedia, QtGui
 
 from lib.common import AbstractView, get_cache_path, disable_screensaver, get_dashboard_instance
@@ -71,9 +72,22 @@ class DisplayWidget(QtWidgets.QLCDNumber):
         self.display("{}:{}:{}".format(hours, minutes, seconds))
 
 
+class DBusHandler(dbus.service.Object):
+    def __init__(self, view_instance: "View", session_bus: dbus.Bus):
+        dbus.service.Object.__init__(self, session_bus, "/timer")
+
+        self.view_instance = view_instance
+
+    @dbus.service.method("com.selfcoders.Dashboard", in_signature="", out_signature="b")
+    def is_active(self):
+        return self.view_instance.is_active
+
+
 class View(QtWidgets.QWidget, AbstractView):
     def __init__(self, disable_screensaver_while_active=False):
         super().__init__()
+
+        DBusHandler(self, get_dashboard_instance().session_dbus)
 
         self.timer_time = None
         self.is_active = False
