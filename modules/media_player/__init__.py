@@ -96,5 +96,5 @@ class View(QtMultimediaWidgets.QVideoWidget, AbstractView):
                 break
 
         process_user_id = os.getuid()
-        if active_session_user_id != process_user_id and self.media_player is not None:
+        if active_session_user_id != process_user_id and self.player is not None:
             self.stop()
