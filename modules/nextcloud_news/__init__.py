@@ -139,7 +139,7 @@ class View(QtWidgets.QTreeWidget, AbstractView):
             for entry in items:
                 entry_item = QtWidgets.QTreeWidgetItem(feed_item)
 
-                datetime_string = datetime.datetime.fromtimestamp(entry["lastModified"]).strftime("%c")
+                datetime_string = datetime.datetime.fromtimestamp(entry["pubDate"]).strftime("%c")
 
                 entry_item.setData(0, QtCore.Qt.UserRole, entry)
 
