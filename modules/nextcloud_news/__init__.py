@@ -1,4 +1,5 @@
 import datetime
+import re
 import subprocess
 from collections import OrderedDict
 
@@ -19,12 +20,19 @@ class Updater(QtCore.QThread):
         self.auth = auth
 
     def run(self):
+        request = requests.get("{}/folders".format(self.base_url), auth=self.auth)
+
+        folders = {}
+
+        for folder in request.json()["folders"]:
+            folders[int(folder["id"])] = folder["name"]
+
         request = requests.get("{}/feeds".format(self.base_url), auth=self.auth)
 
         feeds = {}
 
         for feed in request.json()["feeds"]:
-            feeds[int(feed["id"])] = feed["title"]
+            feeds[int(feed["id"])] = feed
 
         request = requests.get("{}/items".format(self.base_url), auth=self.auth, params={"type": 3, "getRead": "false", "batchSize": -1})
 
@@ -34,7 +42,10 @@ class Updater(QtCore.QThread):
             if len(items) >= 1000:
                 break
 
-            item["feed"] = feeds[int(item["feedId"])]
+            feed = feeds[int(item["feedId"])]
+
+            item["folder"] = folders[int(feed["folderId"])]
+            item["feed"] = feed["title"]
 
             items.append(item)
 
@@ -42,12 +53,13 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None, update_interval=600):
+    def __init__(self, nextcloud_url, username, password, columns=None, exclude_items=None, update_interval=600):
         super().__init__()
 
         self.news = {}
         self.base_url = "{}/index.php/apps/news/api/v1-2".format(nextcloud_url)
         self.auth = (username, password)
+        self.exclude_items = exclude_items
 
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -111,6 +123,23 @@ class View(QtWidgets.QTreeWidget, AbstractView):
 
         self.context_menu.exec(self.mapToGlobal(position))
 
+    def check_exclude_filter(self, item_type, value):
+        if not self.exclude_items:
+            return False
+
+        for item in self.exclude_items:
+            if item["type"] != item_type:
+                continue
+
+            if "value" in item:
+                if item["value"] == value:
+                    return True
+            elif "regex" in item:
+                if re.match(item["regex"], value):
+                    return True
+
+        return False
+
     def update_data(self, items):
         self.clear()
 
@@ -119,34 +148,55 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         grouped_items = {}
 
         for entry in items:
+            folder = entry["folder"]
             feed = entry["feed"]
 
             self.news[entry["id"]] = entry
 
-            if feed not in grouped_items:
-                grouped_items[feed] = []
+            if folder not in grouped_items:
+                grouped_items[folder] = {}
 
-            grouped_items[feed].append(entry)
+            if feed not in grouped_items[folder]:
+                grouped_items[folder][feed] = []
 
-        grouped_items = OrderedDict(sorted(grouped_items.items(), key=lambda item: item[0].lower()))
+            grouped_items[folder][feed].append(entry)
 
-        for feed, items in grouped_items.items():
-            feed_item = QtWidgets.QTreeWidgetItem(self)
+        sorted_folders = OrderedDict(sorted(grouped_items.items(), key=lambda item: item[0].lower()))
 
-            feed_item.setText(0, "{} ({})".format(feed, len(items)))
-            feed_item.setExpanded(True)
+        for folder_name, feeds in sorted_folders.items():
+            if self.check_exclude_filter("folder", folder_name):
+                continue
 
-            for entry in items:
-                entry_item = QtWidgets.QTreeWidgetItem(feed_item)
+            folder_item = QtWidgets.QTreeWidgetItem(self)
 
-                datetime_string = datetime.datetime.fromtimestamp(entry["pubDate"]).strftime("%c")
+            folder_item.setText(0, "{} ({})".format(folder_name, sum([len(entries) for entries in feeds.values()])))
+            folder_item.setExpanded(True)
 
-                entry_item.setData(0, QtCore.Qt.UserRole, entry)
+            sorted_feeds = OrderedDict(sorted(feeds.items(), key=lambda item: item[0].lower()))
 
-                entry_item.setText(0, entry["title"])
-                entry_item.setData(0, QtCore.Qt.ToolTipRole, entry["title"])
-                entry_item.setText(1, datetime_string)
-                entry_item.setData(1, QtCore.Qt.ToolTipRole, datetime_string)
+            for feed_name, entries in sorted_feeds.items():
+                if self.check_exclude_filter("feed", feed_name):
+                    continue
+
+                feed_item = QtWidgets.QTreeWidgetItem(folder_item)
+
+                feed_item.setText(0, "{} ({})".format(feed_name, len(entries)))
+                feed_item.setExpanded(True)
+
+                for entry in entries:
+                    if self.check_exclude_filter("entry", entry["title"]):
+                        continue
+
+                    entry_item = QtWidgets.QTreeWidgetItem(feed_item)
+
+                    datetime_string = datetime.datetime.fromtimestamp(entry["pubDate"]).strftime("%c")
+
+                    entry_item.setData(0, QtCore.Qt.UserRole, entry)
+
+                    entry_item.setText(0, entry["title"])
+                    entry_item.setData(0, QtCore.Qt.ToolTipRole, entry["title"])
+                    entry_item.setText(1, datetime_string)
+                    entry_item.setData(1, QtCore.Qt.ToolTipRole, datetime_string)
 
     def get_selected_items(self):
         selected_model_indexes = self.selectedIndexes()
