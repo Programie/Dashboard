@@ -2,12 +2,18 @@ import datetime
 import re
 import subprocess
 from collections import OrderedDict
+from enum import Enum
 
 import pyperclip
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from lib.common import Timer, AbstractView
+
+
+class ItemAction(Enum):
+    EXCLUDE = "exclude"
+    COLLAPSE = "collapse"
 
 
 class Updater(QtCore.QThread):
@@ -53,13 +59,13 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None, exclude_items=None, update_interval=600):
+    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, update_interval=600):
         super().__init__()
 
         self.news = {}
         self.base_url = "{}/index.php/apps/news/api/v1-2".format(nextcloud_url)
         self.auth = (username, password)
-        self.exclude_items = exclude_items
+        self.item_options = item_options
 
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -123,18 +129,18 @@ class View(QtWidgets.QTreeWidget, AbstractView):
 
         self.context_menu.exec(self.mapToGlobal(position))
 
-    def check_exclude_filter(self, item_type, value):
-        if not self.exclude_items:
+    def check_item_options(self, item_type: str, value: str, action: ItemAction):
+        if not self.item_options:
             return False
 
-        for item in self.exclude_items:
+        for item in self.item_options:
             if item["type"] != item_type:
                 continue
 
             if "value" in item:
-                if item["value"] == value:
+                if item["value"] == value and item["action"] == action.value:
                     return True
-            elif "regex" in item:
+            elif "regex" in item and item["action"] == action.value:
                 if re.match(item["regex"], value):
                     return True
 
@@ -164,27 +170,27 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         sorted_folders = OrderedDict(sorted(grouped_items.items(), key=lambda item: item[0].lower()))
 
         for folder_name, feeds in sorted_folders.items():
-            if self.check_exclude_filter("folder", folder_name):
+            if self.check_item_options("folder", folder_name, ItemAction.EXCLUDE):
                 continue
 
             folder_item = QtWidgets.QTreeWidgetItem(self)
 
             folder_item.setText(0, "{} ({})".format(folder_name, sum([len(entries) for entries in feeds.values()])))
-            folder_item.setExpanded(True)
+            folder_item.setExpanded(not self.check_item_options("folder", folder_name, ItemAction.COLLAPSE))
 
             sorted_feeds = OrderedDict(sorted(feeds.items(), key=lambda item: item[0].lower()))
 
             for feed_name, entries in sorted_feeds.items():
-                if self.check_exclude_filter("feed", feed_name):
+                if self.check_item_options("feed", feed_name, ItemAction.EXCLUDE):
                     continue
 
                 feed_item = QtWidgets.QTreeWidgetItem(folder_item)
 
                 feed_item.setText(0, "{} ({})".format(feed_name, len(entries)))
-                feed_item.setExpanded(True)
+                feed_item.setExpanded(not self.check_item_options("feed", feed_name, ItemAction.COLLAPSE))
 
                 for entry in entries:
-                    if self.check_exclude_filter("entry", entry["title"]):
+                    if self.check_item_options("entry", entry["title"], ItemAction.EXCLUDE):
                         continue
 
                     entry_item = QtWidgets.QTreeWidgetItem(feed_item)
