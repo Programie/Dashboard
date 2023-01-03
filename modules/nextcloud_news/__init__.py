@@ -28,7 +28,9 @@ class Updater(QtCore.QThread):
     def run(self):
         request = requests.get("{}/folders".format(self.base_url), auth=self.auth)
 
-        folders = {}
+        folders = {
+            -1: "No folder"
+        }
 
         for folder in request.json()["folders"]:
             folders[int(folder["id"])] = folder["name"]
@@ -49,8 +51,12 @@ class Updater(QtCore.QThread):
                 break
 
             feed = feeds[int(item["feedId"])]
+            folder_id = feed["folderId"]
 
-            item["folder"] = folders[int(feed["folderId"])]
+            if folder_id is None:
+                folder_id = -1
+
+            item["folder"] = folders[int(folder_id)]
             item["feed"] = feed["title"]
 
             items.append(item)
