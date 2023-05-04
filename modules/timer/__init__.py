@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -5,6 +6,7 @@ import dbus
 from PyQt5 import QtWidgets, QtCore, QtMultimedia, QtGui
 
 from lib.common import AbstractView, get_cache_path, disable_screensaver, get_dashboard_instance
+from modules.mqtt_listener import mqtt_publish_json, mqtt_subscribe
 
 
 class DisplayWidget(QtWidgets.QLCDNumber):
@@ -84,7 +86,7 @@ class DBusHandler(dbus.service.Object):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, disable_screensaver_while_active=False):
+    def __init__(self, disable_screensaver_while_active=False, sync_to_mqtt_topic=None):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -94,6 +96,8 @@ class View(QtWidgets.QWidget, AbstractView):
         self.is_sound_playing = False
         self.disable_screensaver_while_active = disable_screensaver_while_active
         self.disable_screensaver_state = None
+
+        self.sync_to_mqtt_topic = sync_to_mqtt_topic
 
         self.remaining_time_file = get_cache_path("timer")
 
@@ -120,22 +124,45 @@ class View(QtWidgets.QWidget, AbstractView):
         self.update_timer.timeout.connect(self.update_time)
         self.update_timer.start()
 
+        self.update_time()
+        self.display_widget.update_display()
+
+    def start_view(self):
         if os.path.exists(self.remaining_time_file):
             with open(self.remaining_time_file, "r") as remaining_file:
                 end_timestamp = int(remaining_file.readline())
 
                 if end_timestamp > QtCore.QDateTime.currentSecsSinceEpoch():
-                    self.timer_time = QtCore.QTime(0, 0, 0).addSecs(end_timestamp - QtCore.QDateTime.currentSecsSinceEpoch())
-
-                    # Set time to current time
-                    self.time.start()
-
-                    self.start_timer()
+                    self.start_timer(QtCore.QTime(0, 0, 0).addSecs(end_timestamp - QtCore.QDateTime.currentSecsSinceEpoch()), True)
                 else:
                     os.unlink(self.remaining_time_file)
 
-        self.update_time()
-        self.display_widget.update_display()
+        if self.sync_to_mqtt_topic:
+            mqtt_subscribe(self.sync_to_mqtt_topic, lambda data: self.update_from_mqtt(json.loads(data)))
+
+    def update_from_mqtt(self, data):
+        if not data:
+            return
+
+        # Do not trigger again if source was this instance
+        if data.get("source") == get_dashboard_instance().instance_name:
+            return
+
+        new_time = QtCore.QTime(0, 0, 0).addMSecs(data.get("time", 0))
+        if data.get("active"):
+            self.start_timer(new_time, False)
+        else:
+            self.stop_timer(False)
+
+    def update_to_mqtt(self):
+        if not self.sync_to_mqtt_topic:
+            return
+
+        mqtt_publish_json(self.sync_to_mqtt_topic, {
+            "source": get_dashboard_instance().instance_name,
+            "time": self.get_remaining_time(),
+            "active": self.is_active
+        }, True)
 
     def get_remaining_time(self):
         return self.timer_time.msecsSinceStartOfDay() - self.time.elapsed()
@@ -144,7 +171,10 @@ class View(QtWidgets.QWidget, AbstractView):
         if self.is_active:
             remaining_time = self.get_remaining_time()
 
-            if remaining_time <= 0:
+            if remaining_time >0:
+                if self.sync_to_mqtt_topic:
+                    self.update_to_mqtt()
+            else:
                 remaining_time = 0
                 self.is_active = False
                 self.trigger_alarm()
@@ -166,31 +196,49 @@ class View(QtWidgets.QWidget, AbstractView):
 
     def button_action(self):
         if self.is_sound_playing or self.is_active:
-            self.stop_alarm()
-            self.display_widget.editable = True
-            self.is_active = False
-
-            if os.path.exists(self.remaining_time_file):
-                os.unlink(self.remaining_time_file)
+            self.stop_timer(True)
         else:
-            self.timer_time = self.display_widget.get_time()
+            new_time = self.display_widget.get_time()
 
-            if not self.timer_time.isValid():
+            if not new_time.isValid():
                 QtWidgets.QMessageBox.critical(self, self.windowTitle(), "Invalid time!")
                 return
 
-            # Set time to current time
-            self.time.start()
-
-            if self.get_remaining_time() <= 0:
-                return
-
-            self.start_timer()
-
-            with open(self.remaining_time_file, "w") as timestamp_file:
-                timestamp_file.write(str(int(QtCore.QDateTime.currentSecsSinceEpoch() + (self.timer_time.msecsSinceStartOfDay() / 1000))))
+            self.start_timer(new_time, True)
 
         self.update_time()
+
+    def start_timer(self, new_time: QtCore.QTime, publish_mqtt: bool):
+        if not new_time.isValid():
+            return
+
+        self.timer_time = new_time
+
+        # Set time to current time
+        self.time.start()
+
+        if self.get_remaining_time() <= 0:
+            return
+
+        self.display_widget.editable = False
+        self.is_active = True
+
+        with open(self.remaining_time_file, "w") as timestamp_file:
+            timestamp_file.write(str(int(QtCore.QDateTime.currentSecsSinceEpoch() + (self.timer_time.msecsSinceStartOfDay() / 1000))))
+
+        if publish_mqtt:
+            self.update_to_mqtt()
+
+    def stop_timer(self, publish_mqtt: bool):
+        self.stop_alarm()
+        self.display_widget.editable = True
+        self.is_active = False
+
+        if os.path.exists(self.remaining_time_file):
+            os.unlink(self.remaining_time_file)
+
+        if publish_mqtt:
+            self.update_to_mqtt()
 
     def stop_alarm(self):
         self.is_sound_playing = False
@@ -199,10 +247,6 @@ class View(QtWidgets.QWidget, AbstractView):
     def trigger_alarm(self):
         self.is_sound_playing = True
         self.alarm_sound.play()
-
-    def start_timer(self):
-        self.display_widget.editable = False
-        self.is_active = True
 
     def update_screensaver(self):
         if self.disable_screensaver_while_active:
