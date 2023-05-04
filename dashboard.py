@@ -2,6 +2,7 @@
 import importlib
 import inspect
 import signal
+import socket
 import traceback
 from typing import Dict, List, Tuple
 
@@ -51,6 +52,9 @@ class Dashboard(QtWidgets.QMainWindow, AbstractView):
         self.widget_instances: Dict[str, List[AbstractView]] = {}
         self.plugin_instances: Dict[str, List[AbstractPlugin]] = {}
         self.error_message = QtWidgets.QErrorMessage(self)
+
+        # Instance name to have a unique name if running multiple instances on the same machine or on multiple machines
+        self.instance_name = "{}/{}".format(socket.gethostname(), os.getpid())
 
         self.splash_screen = QtWidgets.QSplashScreen(QtGui.QPixmap(os.path.join(os.path.dirname(os.path.realpath(__file__)), "images", "splash.png")))
         self.splash_screen.setWindowFlag(QtCore.Qt.WindowStaysOnTopHint)
