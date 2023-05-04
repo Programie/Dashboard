@@ -86,7 +86,7 @@ class DBusHandler(dbus.service.Object):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, disable_screensaver_while_active=False, sync_to_mqtt_topic=None):
+    def __init__(self, disable_screensaver_while_active=False, sync_to_mqtt_topic=None, send_mqtt_updates=True):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -98,6 +98,7 @@ class View(QtWidgets.QWidget, AbstractView):
         self.disable_screensaver_state = None
 
         self.sync_to_mqtt_topic = sync_to_mqtt_topic
+        self.send_mqtt_updates = send_mqtt_updates
 
         self.remaining_time_file = get_cache_path("timer")
 
@@ -171,8 +172,8 @@ class View(QtWidgets.QWidget, AbstractView):
         if self.is_active:
             remaining_time = self.get_remaining_time()
 
-            if remaining_time >0:
-                if self.sync_to_mqtt_topic:
+            if remaining_time > 0:
+                if self.sync_to_mqtt_topic and self.send_mqtt_updates:
                     self.update_to_mqtt()
             else:
                 remaining_time = 0
