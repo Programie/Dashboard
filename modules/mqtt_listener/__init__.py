@@ -42,7 +42,7 @@ class ConnectWithRetry(QtCore.QThread):
 class Plugin(QtCore.QObject, AbstractPlugin):
     message_received = QtCore.pyqtSignal(str, str)
 
-    def __init__(self, dashboard_instance, host, username, password, fake_screensaver_topic=None):
+    def __init__(self, dashboard_instance, host, username=None, password=None, fake_screensaver_topic=None):
         super().__init__(dashboard_instance)
 
         self.topic_callbacks_map = {}
