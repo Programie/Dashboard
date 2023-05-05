@@ -9,6 +9,19 @@ from lib.common import AbstractView, get_cache_path, disable_screensaver, get_da
 from modules.mqtt_listener import mqtt_publish_json, mqtt_subscribe
 
 
+def absolute_time_to_relative_time(end_time: QtCore.QDateTime):
+    now = QtCore.QDateTime.currentDateTime()
+    time_diff = now.msecsTo(end_time)
+
+    return QtCore.QTime(0, 0, 0).addMSecs(time_diff)
+
+
+def relative_time_to_absolute_time(new_time: QtCore.QTime):
+    now = QtCore.QDateTime.currentDateTime()
+
+    return now.addMSecs(new_time.msecsSinceStartOfDay())
+
+
 class DisplayWidget(QtWidgets.QLCDNumber):
     clicked = QtCore.pyqtSignal()
     return_pressed = QtCore.pyqtSignal()
@@ -86,7 +99,7 @@ class DBusHandler(dbus.service.Object):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, disable_screensaver_while_active=False, sync_to_mqtt_topic=None, send_mqtt_updates=True):
+    def __init__(self, disable_screensaver_while_active=False, sync_to_mqtt_topic=None):
         super().__init__()
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
@@ -98,7 +111,6 @@ class View(QtWidgets.QWidget, AbstractView):
         self.disable_screensaver_state = None
 
         self.sync_to_mqtt_topic = sync_to_mqtt_topic
-        self.send_mqtt_updates = send_mqtt_updates
 
         self.remaining_time_file = get_cache_path("timer")
 
@@ -149,9 +161,9 @@ class View(QtWidgets.QWidget, AbstractView):
         if data.get("source") == get_dashboard_instance().instance_name:
             return
 
-        new_time = QtCore.QTime(0, 0, 0).addMSecs(data.get("time", 0))
+        new_time = QtCore.QDateTime().fromTime_t(data.get("time", 0))
         if data.get("active"):
-            self.start_timer(new_time, False)
+            self.start_timer(absolute_time_to_relative_time(new_time), False)
         else:
             self.stop_timer(False)
 
@@ -161,7 +173,7 @@ class View(QtWidgets.QWidget, AbstractView):
 
         mqtt_publish_json(self.sync_to_mqtt_topic, {
             "source": get_dashboard_instance().instance_name,
-            "time": self.get_remaining_time(),
+            "time": relative_time_to_absolute_time(QtCore.QTime(0, 0, 0).addMSecs(self.get_remaining_time())).toSecsSinceEpoch(),
             "active": self.is_active
         }, True)
 
@@ -172,10 +184,7 @@ class View(QtWidgets.QWidget, AbstractView):
         if self.is_active:
             remaining_time = self.get_remaining_time()
 
-            if remaining_time > 0:
-                if self.sync_to_mqtt_topic and self.send_mqtt_updates:
-                    self.update_to_mqtt()
-            else:
+            if remaining_time <= 0:
                 remaining_time = 0
                 self.is_active = False
                 self.trigger_alarm()
