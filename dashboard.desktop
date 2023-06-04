@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Dashboard
+Icon=computer
+Exec=/path/to/dashboard.py
+Type=Application
+Terminal=false
+StartupNotify=true
+Actions=Restart;
+
+[Desktop Action Restart]
+Name=Restart
+Icon=reload
+Exec=/path/to/dashboard.py
