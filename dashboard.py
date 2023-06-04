@@ -330,6 +330,15 @@ def main():
         else:
             pid_file = None
 
+        import_paths = []
+
+        for path in config.get("import_paths", []):
+            path = os.path.expanduser(path)
+
+            import_paths.append(path)
+
+        sys.path = import_paths + sys.path
+
         import_modules(config["central_widget"], "widgets")
 
         if "overlay_widget" in config:
