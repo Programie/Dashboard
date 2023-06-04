@@ -35,6 +35,13 @@ font:
   # Font size to use
   size: 12
 
+# Configure an overlay widget which should be placed in the center of the dashboard in front of everything else
+# This is useful for some kind of custom notification widgets
+#overlay_widget:
+#  type: some_widget
+#  size: [500, 200]
+
+
 # Configuration of the main (central) widget, usually a container, splitter or tab widget
 central_widget:
   # The type of the widget (any widget module name like "container", "tabs", "calendar" or "clock")
