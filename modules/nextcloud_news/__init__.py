@@ -1,4 +1,5 @@
 import datetime
+import os
 import re
 import subprocess
 from collections import OrderedDict
@@ -8,7 +9,7 @@ import pyperclip
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from lib.common import Timer, AbstractView
+from lib.common import Timer, AbstractView, get_dashboard_instance
 
 
 class ItemAction(Enum):
@@ -65,13 +66,17 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, update_interval=600):
+    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, update_interval=600, update_in_background=False, tab_id_status=None):
         super().__init__()
 
         self.news = {}
         self.base_url = "{}/index.php/apps/news/api/v1-2".format(nextcloud_url)
         self.auth = (username, password)
         self.item_options = item_options
+        self.tab_id_status = tab_id_status
+        self.seen_items = set()
+
+        self.new_items_icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.realpath(__file__)), "images", "new_items.png"))
 
         self.setAlternatingRowColors(True)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -117,11 +122,22 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
+        self.visibility_changed.connect(self.on_visibility_changed)
+
         self.updater_thread = Updater(self.base_url, self.auth)
         self.updater_thread.ready.connect(self.update_data)
 
-        timer = Timer(self, update_interval * 1000, self)
+        timer = Timer(self, update_interval * 1000, self, auto_enable=not update_in_background)
         timer.timeout.connect(self.trigger_update_by_timer)
+
+        if update_in_background:
+            timer.start()
+
+    def on_visibility_changed(self, state: bool):
+        if state:
+            self.seen_items = set(self.news)
+
+        self.update_tab()
 
     def trigger_update_by_timer(self):
         if len(self.get_selected_items()) > 1:
@@ -209,6 +225,31 @@ class View(QtWidgets.QTreeWidget, AbstractView):
                     entry_item.setData(0, QtCore.Qt.ToolTipRole, entry["title"])
                     entry_item.setText(1, datetime_string)
                     entry_item.setData(1, QtCore.Qt.ToolTipRole, datetime_string)
+
+        if self.isVisible():
+            self.seen_items = set(self.news.keys())
+
+        self.update_tab()
+
+    def get_unseen_items(self):
+        return set(self.news.keys()) - self.seen_items
+
+    def update_tab(self):
+        if self.tab_id_status is None:
+            return
+
+        tab_widget, tab_index = get_dashboard_instance().tab_by_id(self.tab_id_status)
+        if tab_widget is not None:
+            unseen_items = self.get_unseen_items()
+            if unseen_items:
+                tab_title = " ({})".format(len(unseen_items))
+                tab_icon = self.new_items_icon
+            else:
+                tab_title = None
+                tab_icon = QtGui.QIcon()
+
+            tab_widget.append_tab_title(tab_index, tab_title)
+            tab_widget.setTabIcon(tab_index, tab_icon)
 
     def get_selected_items(self):
         selected_model_indexes = self.selectedIndexes()

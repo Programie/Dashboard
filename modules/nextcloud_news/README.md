@@ -10,6 +10,8 @@ Show news from the [Nextcloud New app](https://apps.nextcloud.com/apps/news).
 * `columns` (list): A list of columns to show (default: all, which is equal to `[feed, title, date]`)
 * `item_options` (list): A list of item options (see bellow)
 * `update_interval` (int): Update interval in seconds (default: `600`)
+* `update_in_background` (boolean): Whether to update news in background
+* `tab_id_status` (string): ID of the tab which should be updated once new items are available (requires `update_in_background` to be enabled)
 
 ### Item options
 
