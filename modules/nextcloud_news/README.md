@@ -12,6 +12,7 @@ Show news from the [Nextcloud New app](https://apps.nextcloud.com/apps/news).
 * `update_interval` (int): Update interval in seconds (default: `600`)
 * `update_in_background` (boolean): Whether to update news in background
 * `tab_id_status` (string): ID of the tab which should be updated once new items are available (requires `update_in_background` to be enabled)
+* `context_menu_items` (list): A list of context menu items to add to the default ones (see bellow)
 
 ### Item options
 
@@ -29,3 +30,17 @@ Each item option should be a map/dict containing the following items:
 You may use `value` or `regex` to match the item. If both are specified, `value` is used and `regex` is silently ignored.
 
 Note: Action `colapse` does not work for `entry` items.
+
+### Context menu items
+
+The `context_menu_items` option allows to add additional items to the context menu.
+
+The Option should be a list where each item should be a map/dict containing the following items:
+
+* `title` (string): The title of the menu item (required)
+* `icon` (string): The icon name from the current theme to use for the menu item
+* `shortcut` (string): Define the keyboard shortcut for the item (see documentation of `QtGui.QKeySequence.fromString()` for more details)
+* `command` (string): Command to execute for each selected item (You can use placeholders like `{url}`)
+* `mark_as_read` (boolean): Whether to mark the selected items as read if the command was executed successfully (default: `false`)
+
+You may also add an item specifying only `type: "separator"` to add a separator.

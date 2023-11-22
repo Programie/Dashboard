@@ -66,13 +66,14 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, update_interval=600, update_in_background=False, tab_id_status=None):
+    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, context_menu_items=None, update_interval=600, update_in_background=False, tab_id_status=None):
         super().__init__()
 
         self.news = {}
         self.base_url = "{}/index.php/apps/news/api/v1-2".format(nextcloud_url)
         self.auth = (username, password)
         self.item_options = item_options
+        self.context_menu_items = context_menu_items
         self.tab_id_status = tab_id_status
         self.seen_items = set()
 
@@ -119,6 +120,11 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         self.context_menu.addSeparator()
         self.context_menu.addAction(mark_as_read_action)
 
+        if self.context_menu_items:
+            self.context_menu.addSeparator()
+
+            self.add_context_menu_items()
+
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
 
@@ -144,6 +150,52 @@ class View(QtWidgets.QTreeWidget, AbstractView):
             return
 
         self.updater_thread.start()
+
+    def add_context_menu_item(self, menu_item):
+        if menu_item.get("type") == "separator":
+            self.context_menu.addSeparator()
+            return
+
+        icon_name = menu_item.get("icon")
+        if icon_name is not None:
+            action = QtWidgets.QAction(QtGui.QIcon.fromTheme(icon_name), menu_item.get("title"), self)
+        else:
+            action = QtWidgets.QAction(menu_item.get("title"), self)
+
+        shortcut = menu_item.get("shortcut")
+        if shortcut is not None:
+            action.setShortcut(QtGui.QKeySequence.fromString(shortcut))
+            action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+
+        action.triggered.connect(lambda: self.execute_context_menu_action(menu_item))
+        self.addAction(action)
+        self.context_menu.addAction(action)
+
+    def add_context_menu_items(self):
+        if not self.context_menu_items:
+            return
+
+        for menu_item in self.context_menu_items:
+            self.add_context_menu_item(menu_item)
+
+    def execute_context_menu_action(self, menu_item):
+        items = self.get_selected_items()
+
+        if not items:
+            return
+
+        for list_item in items:
+            self.execute_context_menu_action_for_item(menu_item, list_item)
+
+        self.updater_thread.start()
+
+    def execute_context_menu_action_for_item(self, menu_item, list_item):
+        command = menu_item.get("command")
+        if command is not None:
+            subprocess.check_call(command.format_map(list_item), shell=True)
+
+        if menu_item.get("mark_as_read"):
+            self.mark_item_as_read(list_item)
 
     def show_context_menu(self, position):
         if not self.itemAt(position):
