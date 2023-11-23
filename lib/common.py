@@ -68,6 +68,18 @@ class RingBuffer(deque):
         return list(self)
 
 
+class ThreadedCall(QtCore.QThread):
+    def __init__(self, parent, call: callable, *args, **kwargs):
+        QtCore.QThread.__init__(self, parent)
+
+        self.call = call
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        self.call(*self.args, **self.kwargs)
+
+
 class ThreadedRequest(QtCore.QThread):
     ready = QtCore.pyqtSignal(requests.Response)
 

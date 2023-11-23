@@ -9,7 +9,7 @@ import pyperclip
 import requests
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from lib.common import Timer, AbstractView, get_dashboard_instance
+from lib.common import AbstractView, ThreadedCall, Timer, get_dashboard_instance
 
 
 class ItemAction(Enum):
@@ -185,7 +185,7 @@ class View(QtWidgets.QTreeWidget, AbstractView):
             return
 
         for list_item in items:
-            self.execute_context_menu_action_for_item(menu_item, list_item)
+            ThreadedCall(self, self.execute_context_menu_action_for_item, menu_item, list_item).start()
 
         self.updater_thread.start()
 
