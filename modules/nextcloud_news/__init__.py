@@ -66,12 +66,14 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QTreeWidget, AbstractView):
-    def __init__(self, nextcloud_url, username, password, columns=None, item_options=None, context_menu_items=None, update_interval=600, update_in_background=False, tab_id_status=None):
+    def __init__(self, nextcloud_url, username, password, columns=None, show_folders=None, hide_folders=None, item_options=None, context_menu_items=None, update_interval=600, update_in_background=False, tab_id_status=None):
         super().__init__()
 
         self.news = {}
         self.base_url = "{}/index.php/apps/news/api/v1-2".format(nextcloud_url)
         self.auth = (username, password)
+        self.show_folders = show_folders
+        self.hide_folders = hide_folders
         self.item_options = item_options
         self.context_menu_items = context_menu_items
         self.tab_id_status = tab_id_status
@@ -230,6 +232,12 @@ class View(QtWidgets.QTreeWidget, AbstractView):
         for entry in items:
             folder = entry["folder"]
             feed = entry["feed"]
+
+            if self.show_folders and folder not in self.show_folders:
+                continue
+
+            if self.hide_folders and folder in self.hide_folders:
+                continue
 
             self.news[entry["id"]] = entry
 

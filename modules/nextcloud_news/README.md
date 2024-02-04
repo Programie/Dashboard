@@ -8,6 +8,8 @@ Show news from the [Nextcloud New app](https://apps.nextcloud.com/apps/news).
 * `username` (string): The username for your Nextcloud instance
 * `password` (string): The password for your Nextcloud instance
 * `columns` (list): A list of columns to show (default: all, which is equal to `[feed, title, date]`)
+* `show_folders` (list): A list of folder names which should be shown (or all if not specified)
+* `hide_folders` (list): A list of folder names which should not be shown (or none if not specified)
 * `item_options` (list): A list of item options (see bellow)
 * `update_interval` (int): Update interval in seconds (default: `600`)
 * `update_in_background` (boolean): Whether to update news in background
