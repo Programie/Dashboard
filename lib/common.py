@@ -40,6 +40,9 @@ class AbstractView:
     def start_view(self):
         pass
 
+    def stop_view(self):
+        pass
+
 
 class AbstractPlugin:
     def start_plugin(self):

@@ -384,6 +384,10 @@ def main():
         for plugin_type, plugin_instances in dashboard.plugin_instances.items():
             for plugin_instance in plugin_instances:
                 plugin_instance.stop_plugin()
+
+        for widget_type, widget_instances in dashboard.widget_instances.items():
+            for widget_instance in widget_instances:
+                widget_instance.stop_view()
     finally:
         if pid_file is not None and os.path.exists(pid_file):
             os.remove(pid_file)
