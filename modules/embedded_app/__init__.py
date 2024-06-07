@@ -65,11 +65,11 @@ class View(QtWidgets.QWidget, AbstractView):
             app_name, class_name = window.get_wm_class()
             window_name = window.get_wm_name()
 
-            if self.check_window_selector("app", app_name) or self.check_window_selector("class", class_name) or self.check_window_selector("title", window_name):
+            if self.check_window_selector("app", str(app_name)) or self.check_window_selector("class", str(class_name)) or self.check_window_selector("title", str(window_name)):
                 return window_id
 
             title_contains = self.window_selector.get("title_contains")
-            if title_contains is not None and title_contains in window_name:
+            if title_contains is not None and title_contains in str(window_name):
                 return window_id
 
         return None
