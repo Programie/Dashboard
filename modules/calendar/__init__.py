@@ -9,8 +9,6 @@ from typing import List, Dict
 import caldav
 import dbus.service
 import dbus.mainloop.glib
-import pandas
-import pytz
 from PyQt5 import QtCore, QtWidgets, QtGui
 from caldav.elements import ical
 from vobject import icalendar
@@ -247,14 +245,22 @@ class Event:
     def get_in_range(self, start, end):
         if isinstance(start, datetime.datetime):
             start = start.astimezone().replace(tzinfo=None)
-            all_day_event = False
         else:
-            all_day_event = True
+            start = datetime.datetime.combine(start, datetime.datetime.min.time())
 
         if isinstance(end, datetime.datetime):
             end = end.astimezone().replace(tzinfo=None)
+        else:
+            end = datetime.datetime.combine(end, datetime.datetime.min.time())
 
-        return pandas.date_range(start=start, end=end, closed="left" if all_day_event else None).tolist()
+        dates = []
+        delta = datetime.timedelta(days=1)
+
+        while start < end:
+            dates.append(start)
+            start += delta
+
+        return dates
 
     def get_summary(self):
         return self.vevent.getChildValue("summary")
