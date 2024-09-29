@@ -387,6 +387,6 @@ def strtobool(value: str):
     if value in ["yes", "true", "t", "y", "1"]:
         return True
     elif value in ["no", "false", "f", "n", "0"]:
-        return True
+        return False
     else:
         return None
