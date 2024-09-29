@@ -1,11 +1,10 @@
-import distutils.util
 import json
 import logging
 import time
 
 import paho.mqtt.client as mqtt
 from PyQt5 import QtCore, QtDBus
-from lib.common import AbstractPlugin, get_dashboard_instance
+from lib.common import AbstractPlugin, get_dashboard_instance, strtobool
 
 
 class ConnectWithRetry(QtCore.QThread):
@@ -58,7 +57,7 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.message_received.connect(self.dispatch_message)
 
         if fake_screensaver_topic is not None:
-            self.subscribe(fake_screensaver_topic, lambda payload: dashboard_instance.screensaver_active_changed(distutils.util.strtobool(payload)))
+            self.subscribe(fake_screensaver_topic, lambda payload: dashboard_instance.screensaver_active_changed(strtobool(payload)))
 
         self.connect_thread = ConnectWithRetry(self, self.client, host, username)
 

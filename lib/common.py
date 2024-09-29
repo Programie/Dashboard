@@ -379,3 +379,14 @@ def is_visible(widget: QtWidgets.QWidget = None):
         return False
 
     return True
+
+
+def strtobool(value: str):
+    value = value.lower()
+
+    if value in ["yes", "true", "t", "y", "1"]:
+        return True
+    elif value in ["no", "false", "f", "n", "0"]:
+        return True
+    else:
+        return None
