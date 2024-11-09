@@ -475,7 +475,7 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0):
+    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0, show_add_todo=True):
         super().__init__()
 
         if isinstance(sort_todos, list):
@@ -528,21 +528,25 @@ class View(QtWidgets.QWidget, AbstractView):
         self.overdue_todo_button.setVisible(False)
         layout.addWidget(self.overdue_todo_button, 0)
 
-        add_todo_layout = QtWidgets.QHBoxLayout()
-        layout.addLayout(add_todo_layout, 0)
+        if show_add_todo:
+            add_todo_layout = QtWidgets.QHBoxLayout()
+            layout.addLayout(add_todo_layout, 0)
 
-        self.add_todo_field = QtWidgets.QLineEdit()
-        self.add_todo_field.setPlaceholderText("Add new todo")
-        self.add_todo_field.textChanged.connect(self.update_add_todo_button)
-        self.add_todo_field.returnPressed.connect(self.add_todo)
-        add_todo_layout.addWidget(self.add_todo_field, 1)
+            self.add_todo_field = QtWidgets.QLineEdit()
+            self.add_todo_field.setPlaceholderText("Add new todo")
+            self.add_todo_field.textChanged.connect(self.update_add_todo_button)
+            self.add_todo_field.returnPressed.connect(self.add_todo)
+            add_todo_layout.addWidget(self.add_todo_field, 1)
 
-        self.add_todo_button = QtWidgets.QPushButton()
-        self.add_todo_button.setIcon(QtGui.QIcon.fromTheme("add"))
-        self.add_todo_button.clicked.connect(self.add_todo)
-        add_todo_layout.addWidget(self.add_todo_button, 0)
+            self.add_todo_button = QtWidgets.QPushButton()
+            self.add_todo_button.setIcon(QtGui.QIcon.fromTheme("add"))
+            self.add_todo_button.clicked.connect(self.add_todo)
+            add_todo_layout.addWidget(self.add_todo_button, 0)
 
-        self.update_add_todo_button()
+            self.update_add_todo_button()
+        else:
+            self.add_todo_field = None
+            self.add_todo_button = None
 
         default_page = None
 
@@ -626,6 +630,9 @@ class View(QtWidgets.QWidget, AbstractView):
             dialog.notes_widget.setText(notes)
 
     def add_todo(self):
+        if self.add_todo_field is None:
+            return
+
         text = self.add_todo_field.text().strip()
         if not text:
             return
@@ -637,4 +644,7 @@ class View(QtWidgets.QWidget, AbstractView):
         self.add_todo_field.clear()
 
     def update_add_todo_button(self):
+        if self.add_todo_button is None or self.add_todo_field is None:
+            return
+
         self.add_todo_button.setEnabled(self.add_todo_field.text().strip() != "")
