@@ -14,6 +14,7 @@ Show tasks from task lists retrieved via CalDAV.
 * `default_priority_order_number` (integer): Priority number for tasks without priority when sorting tasks by priority (default: `0`)
 * `show_add_todo` (boolean): Whether to show the field bellow the todo list to add a new todo entry (default: `true`)
 * `show_before_start` (integer): How many days before a todo item with start date should be visible (default: `None` which means always show the item)
+* `item_style` (dict): Specify how to style items (see bellow)
 
 You may also specify `todo_lists` as a dict (map) to overwrite the sorting and default priority order umber for specific lists. In that case the dict should have the following structure:
 
@@ -26,4 +27,27 @@ todo_lists:
   another_list:
     default_priority_order_number: 5
   list_using_defaults: {}
+```
+
+### Item style
+
+The `item_style` option allows to specify different styles for different item states (e.g. overdue items).
+
+The following styles are available:
+
+* `default`: Default for all items
+* `overdue`: Item has reached the due date
+* `has_duedate`: Item has a due date but is not reached yet
+* `not_started`: Item has a start date but has not started yet
+
+Each style can specify the foreground color as well as the background color of the item.
+
+Example:
+```yaml
+item_style:
+  overdue:
+    foreground_color: white
+    background_color: red
+  not_started:
+    foreground_color: gray
 ```

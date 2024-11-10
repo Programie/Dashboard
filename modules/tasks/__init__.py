@@ -256,7 +256,7 @@ class TodoDialog(QtWidgets.QDialog):
 
 
 class TodoListWidget(QtWidgets.QTreeWidget):
-    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager", updater_thread: "Updater", show_before_start):
+    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager", updater_thread: "Updater", show_before_start, item_style: dict):
         super().__init__()
 
         self.view_widget = view_widget
@@ -264,6 +264,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
         self.calendar_manager = calendar_manager
         self.updater_thread = updater_thread
         self.show_before_start = show_before_start
+        self.item_style = item_style
         self.overdue_todo_item = None
 
         self.setHeaderHidden(True)
@@ -355,16 +356,18 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
             font = list_item.font(0)
 
+            self.set_item_style(list_item, "default")
+
             if todo_item.due_datetime is not None:
                 if todo_item.is_overdue():
                     self.overdue_todo_item = todo_item
-                    list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("red")))
+                    self.set_item_style(list_item, "overdue", "red")
                 else:
-                    list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("#FFD800")))
+                    self.set_item_style(list_item, "has_duedate", "#FFD800")
 
             if todo_item.start_datetime is not None:
                 if (todo_item.start_datetime - datetime.datetime.now(datetime.timezone.utc)).total_seconds() > 0:
-                    list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("gray")))
+                    self.set_item_style(list_item, "not_started", "gray")
 
             if todo_item.is_high_priority():
                 font.setBold(True)
@@ -372,6 +375,17 @@ class TodoListWidget(QtWidgets.QTreeWidget):
             list_item.setFont(0, font)
 
             self.add_from_list(list_item, [child_item for child_item in todo_item.children.values()])
+
+    def set_item_style(self, list_item: QtWidgets.QTreeWidgetItem, style_name: str, default_foreground_color: str = None, default_background_color: str = None):
+        style_config = self.item_style.get(style_name, {})
+
+        foreground_color = style_config.get("foreground_color", default_foreground_color)
+        if foreground_color is not None:
+            list_item.setForeground(0, QtGui.QBrush(QtGui.QColor(foreground_color)))
+
+        background_color = style_config.get("background_color", default_background_color)
+        if background_color is not None:
+            list_item.setBackground(0, QtGui.QBrush(QtGui.QColor(background_color)))
 
     def show_todo(self, list_item: QtWidgets.QTreeWidgetItem):
         if list_item is None:
@@ -496,7 +510,7 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0, show_add_todo=True, show_before_start=None):
+    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0, show_add_todo=True, show_before_start=None, item_style: dict=None):
         super().__init__()
 
         if isinstance(sort_todos, list):
@@ -509,6 +523,9 @@ class View(QtWidgets.QWidget, AbstractView):
                 "due": "asc",
                 "priority": "asc"
             }
+
+        if item_style is None:
+            item_style = {}
 
         DBusHandler(self, get_dashboard_instance().session_dbus)
 
@@ -578,7 +595,7 @@ class View(QtWidgets.QWidget, AbstractView):
             if calendar.name not in todo_lists_list:
                 continue
 
-            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater, show_before_start)
+            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater, show_before_start, item_style)
 
             self.todo_lists[str(calendar.url)] = todo_list_widget
             todo_tabs.append((todo_list_widget, calendar.name))
