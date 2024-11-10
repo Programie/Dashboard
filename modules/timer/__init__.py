@@ -233,6 +233,8 @@ class View(QtWidgets.QWidget, AbstractView):
         self.display_widget.editable = False
         self.is_active = True
 
+        os.makedirs(os.path.dirname(self.remaining_time_file), exist_ok=True)
+
         with open(self.remaining_time_file, "w") as timestamp_file:
             timestamp_file.write(str(int(QtCore.QDateTime.currentSecsSinceEpoch() + (self.timer_time.msecsSinceStartOfDay() / 1000))))
 
