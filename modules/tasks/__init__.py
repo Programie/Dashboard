@@ -56,7 +56,7 @@ class TodoItem:
         if self.start_datetime is None:
             return True
 
-        start_in_days = (self.start_datetime - datetime.datetime.now(datetime.UTC)).days
+        start_in_days = (self.start_datetime - datetime.datetime.now(datetime.timezone.utc)).days
         return start_in_days <= show_before_start
 
     def is_overdue(self):
@@ -363,7 +363,7 @@ class TodoListWidget(QtWidgets.QTreeWidget):
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("#FFD800")))
 
             if todo_item.start_datetime is not None:
-                if (todo_item.start_datetime - datetime.datetime.now(datetime.UTC)).total_seconds() > 0:
+                if (todo_item.start_datetime - datetime.datetime.now(datetime.timezone.utc)).total_seconds() > 0:
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("gray")))
 
             if todo_item.is_high_priority():
