@@ -13,6 +13,7 @@ Show tasks from task lists retrieved via CalDAV.
 * `todos_reversed` (boolean): Whether to sort tasks in reverse order, e.g. the newest first, only used if `sort_todos` is a list (default: `false`)
 * `default_priority_order_number` (integer): Priority number for tasks without priority when sorting tasks by priority (default: `0`)
 * `show_add_todo` (boolean): Whether to show the field bellow the todo list to add a new todo entry (default: `true`)
+* `show_before_start` (integer): How many days before a todo item with start date should be visible (default: `None` which means always show the item)
 
 You may also specify `todo_lists` as a dict (map) to overwrite the sorting and default priority order umber for specific lists. In that case the dict should have the following structure:
 

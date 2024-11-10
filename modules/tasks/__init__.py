@@ -28,17 +28,8 @@ class TodoItem:
         self.children: Dict[str, "TodoItem"] = {}
         self.todo = todo
         self.vtodo = todo.vobject_instance.vtodo
-
-        if hasattr(self.vtodo, "due"):
-            due_datetime = self.vtodo.due.value
-
-            # due datetime might be a date instead of datetime object, therefore convert it to a datetime object
-            if not isinstance(due_datetime, datetime.datetime):
-                due_datetime = datetime.datetime.combine(due_datetime, datetime.datetime.min.time())
-
-            self.due_datetime: datetime.datetime = due_datetime.astimezone(timezone("UTC"))
-        else:
-            self.due_datetime = None
+        self.due_datetime = self.get_datetime("due")
+        self.start_datetime = self.get_datetime("dtstart")
 
         if hasattr(self.vtodo, "priority"):
             self.priority = int(self.vtodo.priority.value)
@@ -57,6 +48,16 @@ class TodoItem:
             return self.vtodo.related_to.value
         else:
             return None
+
+    def should_show(self, show_before_start):
+        if show_before_start is None:
+            return True
+
+        if self.start_datetime is None:
+            return True
+
+        start_in_days = (self.start_datetime - datetime.datetime.now(datetime.UTC)).days
+        return start_in_days <= show_before_start
 
     def is_overdue(self):
         if self.due_datetime is None:
@@ -84,6 +85,18 @@ class TodoItem:
 
     def remove(self):
         self.todo.delete()
+
+    def get_datetime(self, field: str):
+        if not hasattr(self.vtodo, field):
+            return None
+
+        value = getattr(self.vtodo, field).value
+
+        # datetime might be a date instead of datetime object, therefore convert it to a datetime object
+        if not isinstance(value, datetime.datetime):
+            value = datetime.datetime.combine(value, datetime.datetime.min.time())
+
+        return value.astimezone(timezone("UTC"))
 
     @staticmethod
     def create(calendar: caldav.Calendar, summary: str, description: str = ""):
@@ -243,13 +256,14 @@ class TodoDialog(QtWidgets.QDialog):
 
 
 class TodoListWidget(QtWidgets.QTreeWidget):
-    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager", updater_thread: "Updater"):
+    def __init__(self, view_widget: "View", calendar: "Calendar", calendar_manager: "CalendarManager", updater_thread: "Updater", show_before_start):
         super().__init__()
 
         self.view_widget = view_widget
         self.calendar = calendar
         self.calendar_manager = calendar_manager
         self.updater_thread = updater_thread
+        self.show_before_start = show_before_start
         self.overdue_todo_item = None
 
         self.setHeaderHidden(True)
@@ -295,6 +309,9 @@ class TodoListWidget(QtWidgets.QTreeWidget):
 
         for item in todos:
             todo_item = TodoItem(item)
+
+            if not todo_item.should_show(self.show_before_start):
+                continue
 
             todo_items[todo_item.get_id()] = todo_item
 
@@ -344,6 +361,10 @@ class TodoListWidget(QtWidgets.QTreeWidget):
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("red")))
                 else:
                     list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("#FFD800")))
+
+            if todo_item.start_datetime is not None:
+                if (todo_item.start_datetime - datetime.datetime.now(datetime.UTC)).total_seconds() > 0:
+                    list_item.setForeground(0, QtGui.QBrush(QtGui.QColor("gray")))
 
             if todo_item.is_high_priority():
                 font.setBold(True)
@@ -475,7 +496,7 @@ class Updater(QtCore.QThread):
 
 
 class View(QtWidgets.QWidget, AbstractView):
-    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0, show_add_todo=True):
+    def __init__(self, url, username, password, todo_lists=None, default_todo_list=None, sort_todos=None, todos_reversed=False, default_priority_order_number=0, show_add_todo=True, show_before_start=None):
         super().__init__()
 
         if isinstance(sort_todos, list):
@@ -557,7 +578,7 @@ class View(QtWidgets.QWidget, AbstractView):
             if calendar.name not in todo_lists_list:
                 continue
 
-            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater)
+            todo_list_widget = TodoListWidget(self, calendar, self.calendar_manager, self.updater, show_before_start)
 
             self.todo_lists[str(calendar.url)] = todo_list_widget
             todo_tabs.append((todo_list_widget, calendar.name))
