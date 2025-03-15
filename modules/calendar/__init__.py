@@ -9,9 +9,9 @@ from typing import List, Dict
 import caldav
 import dbus.service
 import dbus.mainloop.glib
+import vobject.base
 from PyQt5 import QtCore, QtWidgets, QtGui
 from caldav.elements import ical
-from vobject import icalendar
 
 from lib.common import Timer, AbstractView, get_dashboard_instance
 
@@ -29,6 +29,16 @@ def escape_ical_string(string):
         escaped_string.append(character)
 
     return "".join(escaped_string)
+
+
+def are_dates_equal(date1, date2):
+    if isinstance(date1, datetime.datetime):
+        date1 = date1.date()
+
+    if isinstance(date2, datetime.datetime):
+        date2 = date2.date()
+
+    return date1 == date2
 
 
 # Also used in Tasks module
@@ -186,11 +196,30 @@ class CalendarEventDialog(QtWidgets.QDialog):
 
 
 class Event:
-    def __init__(self, vevent: icalendar.RecurringComponent, calendar: Calendar, upcoming_days: int, past_days: int):
-        self.vevent = vevent
+    def __init__(self, vobject_instance: vobject.base.Component, calendar: Calendar, upcoming_days: int, past_days: int):
+        self.vobject = vobject_instance
+        self.vevent = vobject_instance.vevent
         self.calendar = calendar
         self.upcoming_days = upcoming_days
         self.past_days = past_days
+
+    def get_recurrence_ids(self):
+        recurrence_ids = {}
+
+        for vevent in self.vobject.components():
+            if vevent.name != "VEVENT":
+                continue
+
+            recurrence_id = getattr(vevent, "recurrence_id", None)
+            if recurrence_id:
+                old_date = recurrence_id.value
+
+                if isinstance(old_date, datetime.datetime):
+                    old_date = old_date.astimezone().replace(tzinfo=None)
+
+                recurrence_ids[old_date] = vevent
+
+        return recurrence_ids
 
     def get_dates(self):
         rrule = self.vevent.getChildValue("rrule")
@@ -231,6 +260,7 @@ class Event:
 
         start_end_diff = end_datetime - start_datetime
 
+        recurrence_ids = self.get_recurrence_ids()
         all_dates = []
         dates = rules.between(range_start, range_end, True)
         for date in dates:
@@ -238,7 +268,12 @@ class Event:
             if not isinstance(start_datetime, datetime.datetime):
                 date = date.date()
 
-            all_dates.extend(self.get_in_range(date, date + start_end_diff))
+            for date_in_range in self.get_in_range(date, date + start_end_diff):
+                if not next((vevent for old_date, vevent in recurrence_ids.items() if are_dates_equal(old_date, date_in_range)), None):
+                    all_dates.append(date_in_range)
+
+        for vevent in recurrence_ids.values():
+            all_dates.extend(self.get_in_range(vevent.getChildValue("dtstart"), vevent.getChildValue("dtend")))
 
         return all_dates
 
@@ -510,7 +545,7 @@ class View(QtWidgets.QWidget, AbstractView):
 
         for calendar_url, events in events_per_calendar.items():
             for event in events:
-                event = Event(event.vobject_instance.vevent, self.calendars[calendar_url], self.upcoming_days, self.past_days)
+                event = Event(event.vobject_instance, self.calendars[calendar_url], self.upcoming_days, self.past_days)
 
                 for date in event.get_dates():
                     date_object = QtCore.QDate(date.year, date.month, date.day)
