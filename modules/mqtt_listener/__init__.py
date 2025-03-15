@@ -39,10 +39,12 @@ class ConnectWithRetry(QtCore.QThread):
 
 
 class Plugin(QtCore.QObject, AbstractPlugin):
+    message_received = QtCore.pyqtSignal(str, str, str)
+
     def __init__(self, dashboard_instance, host, username=None, password=None, fake_screensaver_topic=None):
         super().__init__(dashboard_instance)
 
-        self.topics = set()
+        self.topic_callbacks_map = {}
 
         logging.basicConfig(level=logging.INFO)
 
@@ -50,6 +52,8 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.reconnect_delay_set(1, 2)
         self.client.username_pw_set(username, password)
         self.client.on_connect = self.on_connect
+
+        self.message_received.connect(self.dispatch_message)
 
         if fake_screensaver_topic is not None:
             self.subscribe(fake_screensaver_topic, lambda topic, payload: dashboard_instance.screensaver_active_changed(strtobool(payload)))
@@ -84,8 +88,8 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.loop_stop()
 
     def subscribe(self, topic: str, callback: callable):
-        self.topics.add(topic)
-        self.client.message_callback_add(topic, lambda client, userdata, message: callback(message.topic, message.payload.decode("utf-8")))
+        self.topic_callbacks_map[topic] = callback
+        self.client.message_callback_add(topic, lambda client, userdata, message: self.message_received.emit(topic, message.topic, message.payload.decode("utf-8")))
 
         if self.client.is_connected():
             logging.info("Subscribing to topic {}".format(topic))
@@ -95,9 +99,12 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.publish(topic, payload, retain=retain)
 
     def on_connect(self, client, userdata, flags, rc):
-        for topic in self.topics:
+        for topic in self.topic_callbacks_map.keys():
             logging.info("Subscribing to topic {}".format(topic))
             client.subscribe(topic)
+
+    def dispatch_message(self, subscription, topic, payload):
+        self.topic_callbacks_map[subscription](topic, payload)
 
 
 def get_plugin_instance():
