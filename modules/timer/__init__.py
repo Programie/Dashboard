@@ -151,7 +151,7 @@ class View(QtWidgets.QWidget, AbstractView):
                     os.unlink(self.remaining_time_file)
 
         if self.sync_to_mqtt_topic:
-            mqtt_subscribe(self.sync_to_mqtt_topic, lambda data: self.update_from_mqtt(json.loads(data)))
+            mqtt_subscribe(self.sync_to_mqtt_topic, lambda topic, data: self.update_from_mqtt(json.loads(data)))
 
     def update_from_mqtt(self, data):
         if not data:

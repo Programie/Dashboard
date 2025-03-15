@@ -39,12 +39,10 @@ class ConnectWithRetry(QtCore.QThread):
 
 
 class Plugin(QtCore.QObject, AbstractPlugin):
-    message_received = QtCore.pyqtSignal(str, str)
-
     def __init__(self, dashboard_instance, host, username=None, password=None, fake_screensaver_topic=None):
         super().__init__(dashboard_instance)
 
-        self.topic_callbacks_map = {}
+        self.topics = set()
 
         logging.basicConfig(level=logging.INFO)
 
@@ -52,12 +50,9 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.reconnect_delay_set(1, 2)
         self.client.username_pw_set(username, password)
         self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message
-
-        self.message_received.connect(self.dispatch_message)
 
         if fake_screensaver_topic is not None:
-            self.subscribe(fake_screensaver_topic, lambda payload: dashboard_instance.screensaver_active_changed(strtobool(payload)))
+            self.subscribe(fake_screensaver_topic, lambda topic, payload: dashboard_instance.screensaver_active_changed(strtobool(payload)))
 
         self.connect_thread = ConnectWithRetry(self, self.client, host, username)
 
@@ -89,7 +84,8 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.loop_stop()
 
     def subscribe(self, topic: str, callback: callable):
-        self.topic_callbacks_map[topic] = callback
+        self.topics.add(topic)
+        self.client.message_callback_add(topic, lambda client, userdata, message: callback(message.topic, message.payload.decode("utf-8")))
 
         if self.client.is_connected():
             logging.info("Subscribing to topic {}".format(topic))
@@ -99,18 +95,9 @@ class Plugin(QtCore.QObject, AbstractPlugin):
         self.client.publish(topic, payload, retain=retain)
 
     def on_connect(self, client, userdata, flags, rc):
-        for topic in self.topic_callbacks_map:
+        for topic in self.topics:
             logging.info("Subscribing to topic {}".format(topic))
             client.subscribe(topic)
-
-    def on_message(self, client, userdata, message: mqtt.MQTTMessage):
-        self.message_received.emit(message.topic, message.payload.decode("utf-8"))
-
-    def dispatch_message(self, topic, payload):
-        if topic not in self.topic_callbacks_map:
-            return
-
-        self.topic_callbacks_map[topic](payload)
 
 
 def get_plugin_instance():
