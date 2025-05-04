@@ -3,6 +3,7 @@ import importlib
 import inspect
 import signal
 import socket
+import time
 import traceback
 from typing import Dict, List, Tuple
 
@@ -354,6 +355,9 @@ def main():
     # Prevent closing main window if it is a tool window and a sub window is closed
     app.setQuitOnLastWindowClosed(False)
 
+    for signal_number in [signal.SIGINT, signal.SIGTERM]:
+        signal.signal(signal_number, lambda signum, frame: app.quit())
+
     sys.excepthook = exception_hook
 
     try:
@@ -364,6 +368,15 @@ def main():
                         pid = int(pid_file_stream.readline().strip())
                         if pid:
                             os.kill(pid, signal.SIGTERM)
+
+                            # Wait for PID to quit for up to 5 seconds
+                            for _ in range(50):
+                                try:
+                                    os.kill(pid, 0)
+                                except ProcessLookupError:
+                                    break
+
+                                time.sleep(0.1)
                 except:
                     pass
 
@@ -378,6 +391,11 @@ def main():
 
         dashboard = Dashboard(config_filepath, app.screens(), session_bus)
         dashboard.show()
+
+        # Dummy-Timer to ensure event loop is triggered (i.e. if a signal has been received)
+        timer = QtCore.QTimer()
+        timer.timeout.connect(lambda: None)
+        timer.start(500)
 
         exit_code = app.exec()
 
